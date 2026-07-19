@@ -1,0 +1,17 @@
+{
+  "name": "The Floor",
+  "short_name": "The Floor",
+  "description": "A weekly habit floor — three marks, presence not magnitude.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#e9e3d6",
+  "theme_color": "#e9e3d6",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

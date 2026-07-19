@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e9e3d6">
+<title>The Floor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --desk:#e9e3d6;
+  --panel:#faf8f3;
+  --ink:#23292e;
+  --muted:#6f7680;
+  --line:#d9d0c1;
+  --hair:#e5ddce;
+  --ena:#2f6e7a;
+  --ena-soft:#cfe0e2;
+  --p1:#d8d0be;
+  --p2:#9dbfc4;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;
+  background:var(--desk);
+  color:var(--ink);
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{
+  max-width:520px;
+  margin:0 auto;
+  padding:20px 20px 44px;
+  padding-top:calc(20px + env(safe-area-inset-top));
+}
+
+/* header */
+.eyebrow{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);font-weight:600}
+.title-row{display:flex;align-items:flex-end;justify-content:space-between;margin-top:9px}
+.title{
+  display:inline-block;
+  border:1.5px solid var(--ink);
+  padding:3px 15px 5px;
+  font-family:Georgia,'Times New Roman',serif;
+  font-size:27px;
+  letter-spacing:.5px;
+}
+.week-tag{font-family:var(--mono);font-size:11px;color:var(--muted);padding-bottom:4px}
+.week-of{font-size:12.5px;color:var(--muted);margin-top:9px}
+header{margin-bottom:20px}
+
+/* cards */
+.card{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 5px 22px -14px rgba(35,41,46,.5);
+  overflow:hidden;
+}
+.marks-card{margin-bottom:16px}
+.marks{padding:8px 10px}
+
+/* mark rows */
+.divider{height:1px;background:var(--hair);margin:0 16px}
+.row{
+  display:flex;align-items:center;gap:13px;
+  padding:15px 14px;border-radius:11px;cursor:pointer;
+}
+.row:hover{background:rgba(0,0,0,.028)}
+.row:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+.badge{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex:none;background:var(--ena-soft);
+}
+.row-text{flex:1;min-width:0}
+.row-name{font-size:15.5px;font-weight:600;display:block}
+.row-sub{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.pips{display:flex;gap:5px}
+.pip{
+  width:18px;height:18px;border-radius:50%;cursor:pointer;padding:0;
+  border:1.6px solid var(--ena);background:transparent;
+  transition:background .16s ease,transform .16s ease;
+}
+.pip.filled{background:var(--ena)}
+.pip.pop{animation:floorPop .3s ease}
+.pip:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+@keyframes floorPop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+.row-state{
+  font-family:var(--mono);font-size:11.5px;color:var(--muted);
+  width:50px;text-align:right;flex:none;
+}
+.row-state.done{color:var(--ena)}
+
+/* floor footer */
+.floor-footer{
+  padding:15px 24px;border-top:1px solid var(--hair);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.floor-footer .label{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);font-weight:700}
+.floor-footer .count{font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:600}
+.floor-footer.done{background:#e8f0ee}
+.floor-footer.done .label,.floor-footer.done .count{color:var(--ena)}
+
+/* actions row */
+.actions{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:0 4px;margin-bottom:18px;gap:12px;
+}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.4}
+.reset{
+  font-family:inherit;font-size:11.5px;color:var(--muted);
+  background:none;border:1px solid var(--line);border-radius:20px;
+  padding:6px 13px;cursor:pointer;flex:none;
+}
+.reset:hover{border-color:var(--ink);color:var(--ink)}
+.reset:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+
+/* annual strip */
+.strip{padding:17px 22px 19px}
+.strip-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:13px}
+.strip-year{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.strip-cov{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(13,1fr);gap:4px}
+@media (max-width:420px){.grid{grid-template-columns:repeat(9,1fr)}}
+.cell{aspect-ratio:1;border-radius:3px}
+.cell.now{outline:2px solid var(--ink);outline-offset:1px}
+.cell.future{background:transparent;border:1px dashed var(--line)}
+.legend{display:flex;gap:13px;margin-top:14px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:6px}
+.swatch{width:11px;height:11px;border-radius:3px;flex:none}
+.swatch.ahead{border:1px dashed var(--line);background:transparent}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Weekly Floor</div>
+    <div class="title-row">
+      <div class="title">The Floor</div>
+      <div class="week-tag" id="week-tag"></div>
+    </div>
+    <div class="week-of" id="week-of"></div>
+  </header>
+
+  <div class="card marks-card">
+    <div class="marks" id="marks"></div>
+    <div class="floor-footer" id="floor-footer">
+      <span class="label">Floor complete</span>
+      <span class="count" id="floor-count"></span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="hint">Tap a row to log a session.<br>Tap a filled pip to undo.</div>
+    <button class="reset" id="reset">Reset week</button>
+  </div>
+
+  <div class="card">
+    <div class="strip">
+      <div class="strip-head">
+        <span class="strip-year" id="strip-year"></span>
+        <span class="strip-cov" id="strip-cov"></span>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--ena)"></span>full</span>
+        <span><span class="swatch" style="background:var(--p2)"></span>partial</span>
+        <span><span class="swatch" style="background:var(--p1)"></span>thin</span>
+        <span><span class="swatch" style="background:var(--hair)"></span>absent</span>
+        <span><span class="swatch ahead"></span>ahead</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const MARKS = [
+  { id:'car', icon:'🏃', name:'Cardio',   sub:'150 min · 5 × 30',         target:5, unit:'min', per:30 },
+  { id:'str', icon:'🏋️', name:'Strength', sub:'2 sessions · 20 min each', target:2, unit:'x' },
+  { id:'yog', icon:'🧘', name:'Yoga',     sub:'2 sessions',               target:2, unit:'x' },
+];
+
+// Custom week numbering, not true ISO-8601: week 1 starts Jan 1 regardless of
+// weekday. Historical storage keys depend on this exact formula — do not swap
+// in an ISO week library without renumbering stored weeks.
+function weekNumber(d){
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7);
+}
+function keyFor(y, w){ return 'floor-' + y + '-w' + w; }
+
+const now = new Date();
+const year = now.getFullYear();
+const week = weekNumber(now);
+const key = keyFor(year, week);
+
+function loadWeek(k){
+  try{ const raw = localStorage.getItem(k); if(raw) return JSON.parse(raw); }catch(e){}
+  return null;
+}
+let data = loadWeek(key) || { car:0, str:0, yog:0 };
+
+function persist(){ localStorage.setItem(key, JSON.stringify(data)); render(); }
+
+function levelFor(ws){
+  if(!ws) return 0;
+  let done = 0;
+  MARKS.forEach(m => { if((ws[m.id] || 0) >= m.target) done++; });
+  return done;
+}
+
+// Pip index that just filled, per mark — animated once on the next render.
+let justFilled = null;
+
+function tick(id){
+  const m = MARKS.find(x => x.id === id);
+  if(data[id] < m.target){
+    data[id] += 1;
+    justFilled = { id, i: data[id] - 1 };
+  }
+  persist();
+}
+function setPip(id, i){
+  if(i + 1 === data[id]){
+    data[id] = i;
+  } else {
+    data[id] = i + 1;
+    justFilled = { id, i };
+  }
+  persist();
+}
+function reset(){
+  if(confirm("Reset this week's marks?")){
+    data = { car:0, str:0, yog:0 };
+    persist();
+  }
+}
+
+const P = { 0:'var(--hair)', 1:'var(--p1)', 2:'var(--p2)', 3:'var(--ena)' };
+
+function render(){
+  // The marks card is rebuilt wholesale; remember what had focus so keyboard
+  // users don't lose their place after Enter/Space triggers a re-render.
+  const active = document.activeElement;
+  const refocus = active && active.dataset ? {
+    row: active.closest ? (active.closest('.row') || {}).dataset : null,
+    pip: active.classList && active.classList.contains('pip') ? active.dataset : null,
+  } : null;
+
+  document.getElementById('week-tag').textContent = 'W' + week;
+  document.getElementById('week-of').textContent =
+    'Week of ' + now.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+
+  const marksEl = document.getElementById('marks');
+  marksEl.textContent = '';
+  MARKS.forEach((m, idx) => {
+    if(idx > 0){
+      const div = document.createElement('div');
+      div.className = 'divider';
+      marksEl.appendChild(div);
+    }
+    const count = data[m.id];
+    const done = count >= m.target;
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.dataset.id = m.id;
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.addEventListener('click', () => tick(m.id));
+    row.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); tick(m.id); }
+    });
+
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = m.icon;
+
+    const text = document.createElement('span');
+    text.className = 'row-text';
+    const name = document.createElement('span');
+    name.className = 'row-name';
+    name.textContent = m.name;
+    const sub = document.createElement('span');
+    sub.className = 'row-sub';
+    sub.textContent = m.sub;
+    text.append(name, sub);
+
+    const pips = document.createElement('span');
+    pips.className = 'pips';
+    for(let i = 0; i < m.target; i++){
+      const pip = document.createElement('button');
+      pip.className = 'pip' + (i < count ? ' filled' : '');
+      pip.dataset.id = m.id;
+      pip.dataset.i = i;
+      if(justFilled && justFilled.id === m.id && justFilled.i === i) pip.classList.add('pop');
+      pip.setAttribute('aria-label', m.name + ' session ' + (i + 1) +
+        (i < count ? ' — logged, tap to undo' : ''));
+      pip.addEventListener('click', e => { e.stopPropagation(); setPip(m.id, i); });
+      pips.appendChild(pip);
+    }
+
+    const state = document.createElement('span');
+    state.className = 'row-state' + (done ? ' done' : '');
+    state.textContent = m.unit === 'min' ? (count * m.per) + ' min' : count + ' / ' + m.target;
+
+    row.append(badge, text, pips, state);
+    marksEl.appendChild(row);
+  });
+  justFilled = null;
+
+  if(refocus){
+    let el = null;
+    if(refocus.pip){
+      el = marksEl.querySelector('.pip[data-id="' + refocus.pip.id + '"][data-i="' + refocus.pip.i + '"]');
+    } else if(refocus.row && refocus.row.id){
+      el = marksEl.querySelector('.row[data-id="' + refocus.row.id + '"]');
+    }
+    if(el) el.focus();
+  }
+
+  const floorDone = MARKS.filter(m => data[m.id] >= m.target).length;
+  document.getElementById('floor-count').textContent = floorDone + ' / 3';
+  document.getElementById('floor-footer').classList.toggle('done', floorDone === 3);
+
+  // annual strip
+  const total = weekNumber(new Date(year, 11, 31));
+  let full = 0, counted = 0;
+  const grid = document.getElementById('grid');
+  grid.textContent = '';
+  for(let w = 1; w <= total; w++){
+    const cell = document.createElement('span');
+    cell.className = 'cell';
+    if(w < week){
+      const lvl = levelFor(loadWeek(keyFor(year, w)));
+      if(lvl === 3) full++;
+      counted++;
+      cell.style.background = P[lvl];
+      cell.title = 'Week ' + w;
+    } else if(w === week){
+      const lvl = levelFor(data);
+      if(lvl === 3) full++;
+      counted++;
+      cell.style.background = P[lvl];
+      cell.classList.add('now');
+      cell.title = 'Week ' + w + ' · now';
+    } else {
+      cell.classList.add('future');
+      cell.title = 'Week ' + w;
+    }
+    grid.appendChild(cell);
+  }
+  document.getElementById('strip-year').textContent = year + ' · weekly coverage';
+  document.getElementById('strip-cov').textContent = full + ' of ' + counted + ' weeks full';
+}
+
+document.getElementById('reset').addEventListener('click', reset);
+render();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
