@@ -1,0 +1,12 @@
+{
+  "appId": "app.nklassen.floor",
+  "appName": "The Floor",
+  "webDir": "www",
+  "server": {
+    "url": "https://nklassen-app.github.io/kairos-floor/",
+    "allowNavigation": ["nklassen-app.github.io"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
