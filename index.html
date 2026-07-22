@@ -158,7 +158,7 @@ header{margin-bottom:20px}
   </div>
 
   <div class="actions">
-    <div class="hint">Tap a row to log a session.<br>Tap a filled pip to undo.</div>
+    <div class="hint">Tap a row to log a session.<br>Tap a filled pip to undo. Weeks roll over each Monday.</div>
     <button class="reset" id="reset">Reset week</button>
   </div>
 
@@ -189,24 +189,50 @@ const MARKS = [
 ];
 
 // Custom week numbering, not true ISO-8601: week 1 starts Jan 1 regardless of
-// weekday. Historical storage keys depend on this exact formula — do not swap
-// in an ISO week library without renumbering stored weeks.
+// weekday, and each new week begins on Monday. Historical storage keys depend
+// on this exact formula — for 2026 the numbers happen to match the earlier
+// Sunday-start scheme, so pre-existing data keeps its keys.
 function weekNumber(d){
   const jan1 = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil((((d - jan1) / 86400000) + jan1.getDay() + 1) / 7);
+  // Normalize to local midnight so time-of-day (and DST offsets) can't leak
+  // into the day count — the raw (d - jan1) version bumped the last day of
+  // a week into the next week for any time after 00:00.
+  const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.round((d0 - jan1) / 86400000);
+  const mondayIndex = (jan1.getDay() + 6) % 7; // Mon=0 … Sun=6
+  return Math.ceil((days + mondayIndex + 1) / 7);
 }
 function keyFor(y, w){ return 'floor-' + y + '-w' + w; }
 
-const now = new Date();
-const year = now.getFullYear();
-const week = weekNumber(now);
-const key = keyFor(year, week);
+let now = new Date();
+let year = now.getFullYear();
+let week = weekNumber(now);
+let key = keyFor(year, week);
 
 function loadWeek(k){
   try{ const raw = localStorage.getItem(k); if(raw) return JSON.parse(raw); }catch(e){}
   return null;
 }
 let data = loadWeek(key) || { car:0, str:0, yog:0 };
+
+// The week is derived from the date, never advanced manually. A PWA can stay
+// alive in memory across a week boundary, so re-derive whenever the app
+// comes back into view; if the key changed, load that week's record fresh.
+// Finished weeks stay in localStorage under their own keys, so the annual
+// strip picks them up without any manual reset.
+function syncWeek(){
+  now = new Date();
+  const y = now.getFullYear(), w = weekNumber(now), k = keyFor(y, w);
+  if(k !== key){
+    year = y; week = w; key = k;
+    data = loadWeek(key) || { car:0, str:0, yog:0 };
+  }
+  render();
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') syncWeek();
+});
+window.addEventListener('focus', syncWeek);
 
 function persist(){ localStorage.setItem(key, JSON.stringify(data)); render(); }
 
@@ -363,7 +389,7 @@ function render(){
 }
 
 document.getElementById('reset').addEventListener('click', reset);
-render();
+syncWeek();
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js');
