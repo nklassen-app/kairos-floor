@@ -34,12 +34,16 @@ The Floor opens from its own launcher icon while Brick has Chrome blocked, logs 
 
 One story, unweighted steps:
 
-**N1 — Capacitor shell**
-☐ `npm init` + Capacitor scaffold in a new `native/` directory (or sibling repo — keep the web page's root clean so Pages still serves it)
-☐ `capacitor.config` with `appId`, `appName: "The Floor"`, `server.url` set to the hosted page, `server.allowNavigation` scoped to that host only
-☐ App icon from the existing `icon.svg` (rasterized to the required densities)
-☐ Gradle debug build producing `app-debug.apk`
-☐ Build scripted so it's reproducible from a clean clone (one command)
+**N1 — Capacitor shell** — **✅ built** *(boxes ticked belatedly 2026-08-15,
+verified against the tree: `native/` scaffold with `capacitor.config.json`
+(`allowNavigation` scoped to `nklassen-app.github.io`), `make-icons.mjs`,
+`app-debug.apk` in the Gradle outputs, and the one-command `npm run build:apk`
+with clean-clone docs in `native/README.md`)*
+☑ `npm init` + Capacitor scaffold in a new `native/` directory (or sibling repo — keep the web page's root clean so Pages still serves it)
+☑ `capacitor.config` with `appId`, `appName: "The Floor"`, `server.url` set to the hosted page, `server.allowNavigation` scoped to that host only
+☑ App icon from the existing `icon.svg` (rasterized to the required densities)
+☑ Gradle debug build producing `app-debug.apk`
+☑ Build scripted so it's reproducible from a clean clone (one command)
 
 Claude Code can also drive the SDK install (step U2) via command-line tools if you prefer terminal over Android Studio — say so at the start of the session.
 
