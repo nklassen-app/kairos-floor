@@ -8,6 +8,8 @@ library.
 
 (The native wrapper work has its own story doc, `FLOOR_NATIVE_WRAPPER.md`.)
 
+Stories in order of appearance, not priority — pick per session.
+
 ---
 
 ## F1 — Week lens: tap a week in the coverage strip to see its floor
@@ -60,3 +62,36 @@ back to the live week.
   the viewer still shows the week it was opened on
 ☐ Absent past week renders the empty floor without JS errors, and the floor
   footer reads correctly (`0 / 3`, not "complete")
+
+---
+
+## F2 — Tracker tab: three circuits, a weight field per exercise per week
+
+**Design doc: `FLOOR_TRACKER_TAB.md`** (settled 2026-09-05). Prototype:
+`workout-tracker.html` — source for the exercise list only; its art
+direction, duration dial, notes, and storage are explicitly not ported.
+
+**Feature.** A second tab beside the floor. Three sections — Base,
+Extension, Finisher — each a hardcoded circuit merging the prototype's Upper
+and Lower exercises of that tier (7 + 8 + 8). Each exercise shows one blank
+entry field for the current week's max weight (short free text, `BW`
+allowed); tapping the row expands a read-only inline history of past weeks'
+values. Same week clock as the floor; weights stored per week under
+`tracker-<year>-w<week>`, keyed by stable exercise ids.
+
+**Steps:**
+
+☐ Tab bar (Floor · Tracker) in `index.html`; opens on Floor, switching is
+  instant, tab one behaves exactly as before (marks, strip, rollover, reset)
+☐ Hardcoded circuit data: three sections with the 23 exercises + rx strings
+  from the design doc, each with a stable id
+☐ Tracker storage: `tracker-<year>-w<week>` records holding only non-empty
+  values as entered; debounced autosave on input; fields start blank
+☐ Current-week entry rows per section, drawn in the Floor's design tokens
+  (no prototype styling), fields blank on a fresh week
+☐ Tap-to-expand history per exercise: logged weeks only, oldest → newest,
+  read-only, walks back up to 26 weeks across the year boundary
+☐ Week rollover shared with the floor: `syncWeek()` re-derivation blanks the
+  tracker's entry fields without touching stored history; "Reset week" still
+  clears floor marks only
+☐ `sw.js` cache version bumped; installed PWA shows the tab after refresh

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q3 2026 Training Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,500..900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F1F2F4;
+    --ink:#14181F;
+    --muted:#5B626E;
+    --line:#D6D9DE;
+    --card:#FFFFFF;
+    --upper:#2447D6;
+    --upper-soft:#E8EDFC;
+    --hiit:#E03616;
+    --hiit-soft:#FCEAE5;
+    --hl:#FFD52E;
+    --display:"Archivo","Arial Narrow",Arial,sans-serif;
+    --body:"Inter",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding:24px 16px 64px}
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  header{margin-bottom:28px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--display);font-weight:850;font-stretch:125%;font-size:clamp(34px,6vw,58px);line-height:1;text-transform:uppercase;letter-spacing:-.01em;margin:6px 0 10px}
+  h1 .q{background:var(--hl);padding:0 .12em}
+  .sub{color:var(--muted);max-width:62ch}
+
+  /* ---------- duration dial ---------- */
+  .dial{display:flex;align-items:center;gap:12px;margin:26px 0 34px;flex-wrap:wrap}
+  .dial-label{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .dial-group{display:flex;border:2px solid var(--ink);border-radius:999px;overflow:hidden;background:var(--card)}
+  .dial-group button{font-family:var(--display);font-stretch:125%;font-weight:750;font-size:16px;padding:10px 22px;border:none;background:transparent;color:var(--ink);cursor:pointer}
+  .dial-group button + button{border-left:2px solid var(--ink)}
+  .dial-group button[aria-pressed="true"]{background:var(--ink);color:var(--hl)}
+  .dial-group button:focus-visible{outline:3px solid var(--upper);outline-offset:-3px}
+  .dial-hint{font-size:13px;color:var(--muted)}
+
+  /* ---------- flow cards ---------- */
+  .flow{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px 26px;margin-bottom:34px;border-top:6px solid var(--flow-accent)}
+  .flow.upper{--flow-accent:var(--upper);--flow-soft:var(--upper-soft)}
+  .flow.hiit{--flow-accent:var(--hiit);--flow-soft:var(--hiit-soft)}
+  .flow-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  h2{font-family:var(--display);font-weight:820;font-stretch:125%;text-transform:uppercase;font-size:clamp(22px,3.4vw,30px);color:var(--flow-accent)}
+  .flow-meta{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .flow-desc{color:var(--muted);font-size:14px;margin-bottom:16px;max-width:70ch}
+
+  /* ---------- tier blocks ---------- */
+  .tier{margin-top:20px}
+  .tier[hidden]{display:none}
+  .tier-tag{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;background:var(--flow-soft);color:var(--flow-accent);border:1px solid var(--flow-accent);border-radius:4px;padding:3px 10px;margin-bottom:10px}
+  .tier-note{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+
+  /* ---------- log table ---------- */
+  .scroller{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+  table{border-collapse:collapse;width:100%;min-width:1080px}
+  th,td{border-bottom:1px solid var(--line);padding:8px 8px;text-align:left;vertical-align:middle}
+  thead th{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:#FAFAFB;position:sticky;top:0}
+  th.wk{text-align:center;min-width:58px}
+  th.wk small{display:block;font-size:10px;color:#9AA0AA;letter-spacing:0}
+  td.ex, th.ex{position:sticky;left:0;background:var(--card);min-width:190px;max-width:230px;box-shadow:2px 0 0 var(--line)}
+  thead th.ex{background:#FAFAFB}
+  .ex-name{font-weight:600;font-size:14px}
+  .ex-rx{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  td.cell{padding:4px;text-align:center}
+  td.cell input{width:54px;height:34px;text-align:center;font-family:var(--mono);font-size:13px;border:1px solid var(--line);border-radius:5px;background:#FCFCFD;color:var(--ink)}
+  td.cell input:focus{outline:2px solid var(--flow-accent);background:#fff}
+  tbody tr:last-child td{border-bottom:none}
+
+  /* ---------- notes + footer ---------- */
+  .notes{margin-top:16px}
+  .notes label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+  .notes textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--body);font-size:14px;resize:vertical;background:#FCFCFD}
+  .notes textarea:focus{outline:2px solid var(--flow-accent)}
+
+  .storage-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border:1px dashed var(--line);border-radius:10px;padding:12px 16px;margin-top:8px;background:#FAFAFB}
+  .storage-bar p{font-size:13px;color:var(--muted)}
+  #save-state{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .clear-btn{font-family:var(--body);font-size:13px;font-weight:600;color:var(--hiit);background:none;border:1px solid var(--hiit);border-radius:6px;padding:6px 14px;cursor:pointer}
+  .clear-btn:hover{background:var(--hiit-soft)}
+
+  @media (prefers-reduced-motion: no-preference){
+    .dial-group button{transition:background .15s,color .15s}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Training Log · Jul 6 – Sep 28 · 13 Weeks</p>
+    <h1><span class="q">Q3 2026</span> Workout Plan</h1>
+    <p class="sub">Two flows — Upper Body strength and Lower Body HIIT — each in a 20, 40, or 60&nbsp;minute version. The longer versions build on the shorter ones: 40&nbsp;min = base + extension, 60&nbsp;min = base + extension + finisher. Log the weight you used in the week columns (use “BW” for bodyweight, or note added load).</p>
+  </header>
+
+  <div class="dial">
+    <span class="dial-label">Session length</span>
+    <div class="dial-group" role="group" aria-label="Choose session length">
+      <button type="button" data-mins="20" aria-pressed="false">20′</button>
+      <button type="button" data-mins="40" aria-pressed="false">40′</button>
+      <button type="button" data-mins="60" aria-pressed="true">60′</button>
+    </div>
+    <span class="dial-hint">Toggles which blocks are shown — your logged weights are kept either way.</span>
+  </div>
+
+  <!-- ============ FLOW A: UPPER BODY ============ -->
+  <section class="flow upper">
+    <div class="flow-head">
+      <h2>Flow A · Upper Body</h2>
+      <span class="flow-meta">2–3×/week · rest 60–90s between sets</span>
+    </div>
+    <p class="flow-desc">Warm up 3–4 min first (arm circles, band pull-aparts, light first set). Pick a weight you could lift for ~2 more reps than prescribed; add load when all sets feel easy two weeks in a row.</p>
+
+    <div class="tier" data-tier="20">
+      <span class="tier-tag">Base · 0–20′</span>
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr>
+              <th class="ex">Exercise</th>
+              <th class="wk">W1<small>Jul 6</small></th><th class="wk">W2<small>Jul 13</small></th><th class="wk">W3<small>Jul 20</small></th><th class="wk">W4<small>Jul 27</small></th><th class="wk">W5<small>Aug 3</small></th><th class="wk">W6<small>Aug 10</small></th><th class="wk">W7<small>Aug 17</small></th><th class="wk">W8<small>Aug 24</small></th><th class="wk">W9<small>Aug 31</small></th><th class="wk">W10<small>Sep 7</small></th><th class="wk">W11<small>Sep 14</small></th><th class="wk">W12<small>Sep 21</small></th><th class="wk">W13<small>Sep 28</small></th>
+            </tr>
+          </thead>
+          <tbody data-block="ua"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tier" data-tier="40">
+      <span class="tier-tag">Extension · 20–40′</span>
+      <div class="scroller">
+        <table>
+          <thead><tr><th class="ex">Exercise</th><th class="wk">W1</th><th class="wk">W2</th><th class="wk">W3</th><th class="wk">W4</th><th class="wk">W5</th><th class="wk">W6</th><th class="wk">W7</th><th class="wk">W8</th><th class="wk">W9</th><th class="wk">W10</th><th class="wk">W11</th><th class="wk">W12</th><th class="wk">W13</th></tr></thead>
+          <tbody data-block="ub"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tier" data-tier="60">
+      <span class="tier-tag">Finisher · 40–60′</span>
+      <div class="scroller">
+        <table>
+          <thead><tr><th class="ex">Exercise</th><th class="wk">W1</th><th class="wk">W2</th><th class="wk">W3</th><th class="wk">W4</th><th class="wk">W5</th><th class="wk">W6</th><th class="wk">W7</th><th class="wk">W8</th><th class="wk">W9</th><th class="wk">W10</th><th class="wk">W11</th><th class="wk">W12</th><th class="wk">W13</th></tr></thead>
+          <tbody data-block="uc"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="notes">
+      <label for="notes-upper">Upper body notes</label>
+      <textarea id="notes-upper" data-store="notes-upper" placeholder="PRs, tweaks, substitutions…"></textarea>
+    </div>
+  </section>
+
+  <!-- ============ FLOW B: LOWER BODY HIIT ============ -->
+  <section class="flow hiit">
+    <div class="flow-head">
+      <h2>Flow B · Lower Body HIIT</h2>
+      <span class="flow-meta">2×/week · intervals 40s work / 20s rest unless noted</span>
+    </div>
+    <p class="flow-desc">Warm up 3–4 min (leg swings, bodyweight squats, easy skips). Each exercise runs as rounds of 40s work / 20s rest. Log the weight used — for jump or bodyweight moves, write “BW”. Rest 60s between exercises.</p>
+
+    <div class="tier" data-tier="20">
+      <span class="tier-tag">Base · 0–20′</span>
+      <p class="tier-note">4 rounds each of the first three, 2 rounds of the last.</p>
+      <div class="scroller">
+        <table>
+          <thead>
+            <tr>
+              <th class="ex">Exercise</th>
+              <th class="wk">W1<small>Jul 6</small></th><th class="wk">W2<small>Jul 13</small></th><th class="wk">W3<small>Jul 20</small></th><th class="wk">W4<small>Jul 27</small></th><th class="wk">W5<small>Aug 3</small></th><th class="wk">W6<small>Aug 10</small></th><th class="wk">W7<small>Aug 17</small></th><th class="wk">W8<small>Aug 24</small></th><th class="wk">W9<small>Aug 31</small></th><th class="wk">W10<small>Sep 7</small></th><th class="wk">W11<small>Sep 14</small></th><th class="wk">W12<small>Sep 21</small></th><th class="wk">W13<small>Sep 28</small></th>
+            </tr>
+          </thead>
+          <tbody data-block="la"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tier" data-tier="40">
+      <span class="tier-tag">Extension · 20–40′</span>
+      <p class="tier-note">3 rounds each.</p>
+      <div class="scroller">
+        <table>
+          <thead><tr><th class="ex">Exercise</th><th class="wk">W1</th><th class="wk">W2</th><th class="wk">W3</th><th class="wk">W4</th><th class="wk">W5</th><th class="wk">W6</th><th class="wk">W7</th><th class="wk">W8</th><th class="wk">W9</th><th class="wk">W10</th><th class="wk">W11</th><th class="wk">W12</th><th class="wk">W13</th></tr></thead>
+          <tbody data-block="lb"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tier" data-tier="60">
+      <span class="tier-tag">Finisher · 40–60′</span>
+      <p class="tier-note">3 rounds each; last exercise to failure on the final round.</p>
+      <div class="scroller">
+        <table>
+          <thead><tr><th class="ex">Exercise</th><th class="wk">W1</th><th class="wk">W2</th><th class="wk">W3</th><th class="wk">W4</th><th class="wk">W5</th><th class="wk">W6</th><th class="wk">W7</th><th class="wk">W8</th><th class="wk">W9</th><th class="wk">W10</th><th class="wk">W11</th><th class="wk">W12</th><th class="wk">W13</th></tr></thead>
+          <tbody data-block="lc"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="notes">
+      <label for="notes-lower">Lower body notes</label>
+      <textarea id="notes-lower" data-store="notes-lower" placeholder="Interval tweaks, conditioning benchmarks…"></textarea>
+    </div>
+  </section>
+
+  <div class="storage-bar">
+    <p>Entries autosave in this browser when you open the file locally. Keep the file in one place and reopen it in the same browser to see your log.</p>
+    <span id="save-state">—</span>
+    <button type="button" class="clear-btn" id="clear-all">Clear all entries</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var WEEKS = 13;
+
+  var EXERCISES = {
+    ua: [ // Upper base (20')
+      ["Flat DB Bench Press", "3 × 8"],
+      ["One-Arm DB Row", "3 × 10 / side"],
+      ["Seated DB Shoulder Press", "3 × 10"]
+    ],
+    ub: [ // Upper extension (40')
+      ["Incline DB Press", "3 × 10"],
+      ["Pull-Ups or Lat Pulldown", "3 × 8"],
+      ["DB Biceps Curl", "3 × 12"],
+      ["Overhead Triceps Extension", "3 × 12"]
+    ],
+    uc: [ // Upper finisher (60')
+      ["Lateral Raise", "3 × 15"],
+      ["Face Pull (band/cable)", "3 × 15"],
+      ["Farmer's Carry", "3 × 40 m"],
+      ["Hanging Knee Raise", "3 × 12"]
+    ],
+    la: [ // Lower HIIT base (20')
+      ["Kettlebell Swing", "4 rnd · 40/20"],
+      ["Goblet Squat", "4 rnd · 40/20"],
+      ["Alternating Reverse Lunge", "4 rnd · 40/20"],
+      ["Mountain Climbers", "2 rnd · 40/20"]
+    ],
+    lb: [ // Lower HIIT extension (40')
+      ["DB Romanian Deadlift", "3 rnd · 40/20"],
+      ["Jump Squat", "3 rnd · 40/20"],
+      ["Weighted Step-Up", "3 rnd · 40/20 / side"],
+      ["Plank Hold", "3 rnd · 40/20"]
+    ],
+    lc: [ // Lower HIIT finisher (60')
+      ["Hip Thrust", "3 rnd · 40/20"],
+      ["Bulgarian Split Squat", "3 rnd · 40/20 / side"],
+      ["Burpees", "3 rnd · 40/20"],
+      ["Standing Calf Raise", "3 rnd · 40/20"]
+    ]
+  };
+
+  // Build rows
+  Object.keys(EXERCISES).forEach(function(block){
+    var tbody = document.querySelector('tbody[data-block="'+block+'"]');
+    EXERCISES[block].forEach(function(ex, i){
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.className = 'ex';
+      td.innerHTML = '<div class="ex-name">'+ex[0]+'</div><div class="ex-rx">'+ex[1]+'</div>';
+      tr.appendChild(td);
+      for (var w = 1; w <= WEEKS; w++){
+        var cell = document.createElement('td');
+        cell.className = 'cell';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 6;
+        input.setAttribute('inputmode','decimal');
+        input.setAttribute('aria-label', ex[0]+' week '+w);
+        input.dataset.store = block+'-'+i+'-w'+w;
+        cell.appendChild(input);
+        tr.appendChild(cell);
+      }
+      tbody.appendChild(tr);
+    });
+  });
+
+  // ---- persistence (works when the file is opened in a normal browser) ----
+  var KEY = 'q3-2026-workout-log';
+  var saveState = document.getElementById('save-state');
+  var storageOK = true;
+
+  function loadAll(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      document.querySelectorAll('[data-store]').forEach(function(el){
+        if (data[el.dataset.store] != null) el.value = data[el.dataset.store];
+      });
+      saveState.textContent = 'Loaded saved log';
+    } catch(e){
+      storageOK = false;
+      saveState.textContent = 'Saving unavailable here — download & open locally';
+    }
+  }
+
+  var saveTimer;
+  function saveAll(){
+    if (!storageOK) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){
+      try {
+        var data = {};
+        document.querySelectorAll('[data-store]').forEach(function(el){
+          if (el.value !== '') data[el.dataset.store] = el.value;
+        });
+        localStorage.setItem(KEY, JSON.stringify(data));
+        var t = new Date();
+        saveState.textContent = 'Saved ' + t.toLocaleTimeString();
+      } catch(e){
+        storageOK = false;
+        saveState.textContent = 'Saving unavailable here — download & open locally';
+      }
+    }, 400);
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target.matches('[data-store]')) saveAll();
+  });
+
+  document.getElementById('clear-all').addEventListener('click', function(){
+    if (!confirm('Clear every logged weight and note for Q3?')) return;
+    document.querySelectorAll('[data-store]').forEach(function(el){ el.value = ''; });
+    try { localStorage.removeItem(KEY); } catch(e){}
+    saveState.textContent = 'Cleared';
+  });
+
+  // ---- duration dial ----
+  var dialButtons = document.querySelectorAll('.dial-group button');
+  function setDuration(mins){
+    dialButtons.forEach(function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.mins === String(mins)));
+    });
+    document.querySelectorAll('.tier').forEach(function(t){
+      t.hidden = Number(t.dataset.tier) > mins;
+    });
+    try { localStorage.setItem(KEY+'-mins', String(mins)); } catch(e){}
+  }
+  dialButtons.forEach(function(b){
+    b.addEventListener('click', function(){ setDuration(Number(b.dataset.mins)); });
+  });
+
+  loadAll();
+  var savedMins = 60;
+  try { savedMins = Number(localStorage.getItem(KEY+'-mins')) || 60; } catch(e){}
+  setDuration(savedMins);
+})();
+</script>
+</body>
+</html>
