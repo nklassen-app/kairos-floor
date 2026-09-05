@@ -71,6 +71,12 @@ back to the live week.
 
 ## F2 — Tracker tab: three circuits, a weight field per exercise per week
 
+**✅ built 2026-09-05** *(verified: DOM-level suite covers the tab bar,
+floor non-regression incl. the F1 lens, 3×(7/8/8) hardcoded circuits,
+debounced non-empty-only storage, one-open-at-a-time history incl. a
+February-clock cross-year walk, clock-forward rollover, and floor-reset
+isolation)*
+
 **Design doc: `FLOOR_TRACKER_TAB.md`** (settled 2026-09-05). Prototype:
 `workout-tracker.html` — source for the exercise list only; its art
 direction, duration dial, notes, and storage are explicitly not ported.
@@ -85,17 +91,17 @@ values. Same week clock as the floor; weights stored per week under
 
 **Steps:**
 
-☐ Tab bar (Floor · Tracker) in `index.html`; opens on Floor, switching is
+☑ Tab bar (Floor · Tracker) in `index.html`; opens on Floor, switching is
   instant, tab one behaves exactly as before (marks, strip, rollover, reset)
-☐ Hardcoded circuit data: three sections with the 23 exercises + rx strings
+☑ Hardcoded circuit data: three sections with the 23 exercises + rx strings
   from the design doc, each with a stable id
-☐ Tracker storage: `tracker-<year>-w<week>` records holding only non-empty
+☑ Tracker storage: `tracker-<year>-w<week>` records holding only non-empty
   values as entered; debounced autosave on input; fields start blank
-☐ Current-week entry rows per section, drawn in the Floor's design tokens
+☑ Current-week entry rows per section, drawn in the Floor's design tokens
   (no prototype styling), fields blank on a fresh week
-☐ Tap-to-expand history per exercise: logged weeks only, oldest → newest,
+☑ Tap-to-expand history per exercise: logged weeks only, oldest → newest,
   read-only, walks back up to 26 weeks across the year boundary
-☐ Week rollover shared with the floor: `syncWeek()` re-derivation blanks the
+☑ Week rollover shared with the floor: `syncWeek()` re-derivation blanks the
   tracker's entry fields without touching stored history; "Reset week" still
   clears floor marks only
-☐ `sw.js` cache version bumped; installed PWA shows the tab after refresh
+☑ `sw.js` cache version bumped; installed PWA shows the tab after refresh
