@@ -14,6 +14,10 @@ Stories in order of appearance, not priority — pick per session.
 
 ## F1 — Week lens: tap a week in the coverage strip to see its floor
 
+**✅ built 2026-09-05** *(verified: `weekStart()` round-trips `weekNumber()`
+for every week 2024–2030; DOM-level suite covers open/read-only/absent/back
+paths and a clock-forward Monday rollover while the lens is open)*
+
 **Problem.** When a week rolls over, its data isn't lost — every week persists
 in `localStorage` under its own `floor-<year>-w<week>` key, and `syncWeek()`
 deliberately leaves finished weeks behind for the strip to pick up. But the
@@ -42,25 +46,25 @@ back to the live week.
 
 **Steps:**
 
-☐ Inverse week math: a `weekStart(y, w)` giving the first day of week `w`
+☑ Inverse week math: a `weekStart(y, w)` giving the first day of week `w`
   under the custom numbering (week 1 starts Jan 1; later weeks start Monday),
   so a viewed week can be captioned "Week of &lt;date&gt;" like the live one
   — must be the exact inverse of `weekNumber()`, verified round-trip for all
   weeks of 2026–2027
-☐ Strip cells for past + current weeks become focusable buttons
+☑ Strip cells for past + current weeks become focusable buttons
   (role/tabindex/aria-label with week number and level), future cells stay
   inert spans
-☐ A `viewedWeek` state (`null` = live): tapping a past cell sets it, and
+☑ A `viewedWeek` state (`null` = live): tapping a past cell sets it, and
   `render()` renders that week's stored data in the marks card with pips and
   rows non-interactive (no tick/undo/reset)
-☐ Viewing chrome: header week-tag and "Week of" reflect the viewed week, a
+☑ Viewing chrome: header week-tag and "Week of" reflect the viewed week, a
   clear "viewing — back to this week" affordance replaces the hint/reset row,
   and the viewed cell is highlighted in the strip
-☐ Live-week guarantees: tapping the current-week cell (or the back
+☑ Live-week guarantees: tapping the current-week cell (or the back
   affordance) returns to live; `syncWeek()` on a week rollover while viewing
   doesn't corrupt state — the live week's key/data advance underneath and
   the viewer still shows the week it was opened on
-☐ Absent past week renders the empty floor without JS errors, and the floor
+☑ Absent past week renders the empty floor without JS errors, and the floor
   footer reads correctly (`0 / 3`, not "complete")
 
 ---

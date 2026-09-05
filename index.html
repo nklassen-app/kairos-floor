@@ -72,6 +72,9 @@ header{margin-bottom:20px}
   padding:15px 14px;border-radius:11px;cursor:pointer;
 }
 .row:hover{background:rgba(0,0,0,.028)}
+.row.ro{cursor:default}
+.row.ro:hover{background:transparent}
+.pip:disabled{cursor:default}
 .row:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
 .badge{
   width:36px;height:36px;border-radius:50%;
@@ -129,7 +132,10 @@ header{margin-bottom:20px}
 .grid{display:grid;grid-template-columns:repeat(13,1fr);gap:4px}
 @media (max-width:420px){.grid{grid-template-columns:repeat(9,1fr)}}
 .cell{aspect-ratio:1;border-radius:3px}
+button.cell{border:none;padding:0;font:inherit;cursor:pointer}
+button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 .cell.now{outline:2px solid var(--ink);outline-offset:1px}
+.cell.viewing{outline:2px solid var(--ena);outline-offset:1px}
 .cell.future{background:transparent;border:1px dashed var(--line)}
 .legend{display:flex;gap:13px;margin-top:14px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
 .legend span{display:flex;align-items:center;gap:6px}
@@ -157,9 +163,14 @@ header{margin-bottom:20px}
     </div>
   </div>
 
-  <div class="actions">
+  <div class="actions" id="actions">
     <div class="hint">Tap a row to log a session.<br>Tap a filled pip to undo. Weeks roll over each Monday.</div>
     <button class="reset" id="reset">Reset week</button>
+  </div>
+
+  <div class="actions" id="viewbar" hidden>
+    <div class="hint" id="view-label"></div>
+    <button class="reset" id="back-live">Back to this week</button>
   </div>
 
   <div class="card">
@@ -204,6 +215,13 @@ function weekNumber(d){
 }
 function keyFor(y, w){ return 'floor-' + y + '-w' + w; }
 
+// Exact inverse of weekNumber(): the first day of week w. Week 1 starts
+// Jan 1 whatever the weekday; every later week starts on a Monday.
+function weekStart(y, w){
+  const mondayIndex = (new Date(y, 0, 1).getDay() + 6) % 7; // Mon=0 … Sun=6
+  return new Date(y, 0, w === 1 ? 1 : 1 + 7 * (w - 1) - mondayIndex);
+}
+
 let now = new Date();
 let year = now.getFullYear();
 let week = weekNumber(now);
@@ -214,6 +232,12 @@ function loadWeek(k){
   return null;
 }
 let data = loadWeek(key) || { car:0, str:0, yog:0 };
+
+// Week lens: a past week being viewed read-only, or null = live. Kept as
+// {year, week} rather than a key so a year rollover underneath the viewer
+// can't repoint it — the live year/week/key advance in syncWeek(), the
+// lens keeps showing the week it was opened on.
+let viewing = null;
 
 // The week is derived from the date, never advanced manually. A PWA can stay
 // alive in memory across a week boundary, so re-derive whenever the app
@@ -281,9 +305,28 @@ function render(){
     pip: active.classList && active.classList.contains('pip') ? active.dataset : null,
   } : null;
 
-  document.getElementById('week-tag').textContent = 'W' + week;
-  document.getElementById('week-of').textContent =
-    'Week of ' + now.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  // A viewed week renders from its stored record (absent key = the empty
+  // floor — that IS the record); everything below draws `shown` and treats
+  // `ro` as "no interactions".
+  const view = viewing ? {
+    year: viewing.year, week: viewing.week,
+    data: loadWeek(keyFor(viewing.year, viewing.week)) || { car:0, str:0, yog:0 },
+  } : null;
+  const ro = !!view;
+  const shown = ro ? view.data : data;
+
+  document.getElementById('week-tag').textContent = 'W' + (ro ? view.week : week);
+  document.getElementById('week-of').textContent = 'Week of ' +
+    (ro ? weekStart(view.year, view.week) : now)
+      .toLocaleDateString(undefined, { month:'short', day:'numeric' });
+
+  document.getElementById('actions').hidden = ro;
+  document.getElementById('viewbar').hidden = !ro;
+  if(ro){
+    document.getElementById('view-label').textContent =
+      'Viewing W' + view.week + (view.year !== year ? ' · ' + view.year : '') +
+      ' — read-only.';
+  }
 
   const marksEl = document.getElementById('marks');
   marksEl.textContent = '';
@@ -293,18 +336,20 @@ function render(){
       div.className = 'divider';
       marksEl.appendChild(div);
     }
-    const count = data[m.id];
+    const count = shown[m.id] || 0;
     const done = count >= m.target;
 
     const row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'row' + (ro ? ' ro' : '');
     row.dataset.id = m.id;
-    row.setAttribute('role', 'button');
-    row.tabIndex = 0;
-    row.addEventListener('click', () => tick(m.id));
-    row.addEventListener('keydown', e => {
-      if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); tick(m.id); }
-    });
+    if(!ro){
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      row.addEventListener('click', () => tick(m.id));
+      row.addEventListener('keydown', e => {
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); tick(m.id); }
+      });
+    }
 
     const badge = document.createElement('span');
     badge.className = 'badge';
@@ -327,10 +372,16 @@ function render(){
       pip.className = 'pip' + (i < count ? ' filled' : '');
       pip.dataset.id = m.id;
       pip.dataset.i = i;
-      if(justFilled && justFilled.id === m.id && justFilled.i === i) pip.classList.add('pop');
-      pip.setAttribute('aria-label', m.name + ' session ' + (i + 1) +
-        (i < count ? ' — logged, tap to undo' : ''));
-      pip.addEventListener('click', e => { e.stopPropagation(); setPip(m.id, i); });
+      if(ro){
+        pip.disabled = true;
+        pip.setAttribute('aria-label', m.name + ' session ' + (i + 1) +
+          (i < count ? ' — logged' : ' — not logged'));
+      } else {
+        if(justFilled && justFilled.id === m.id && justFilled.i === i) pip.classList.add('pop');
+        pip.setAttribute('aria-label', m.name + ' session ' + (i + 1) +
+          (i < count ? ' — logged, tap to undo' : ''));
+        pip.addEventListener('click', e => { e.stopPropagation(); setPip(m.id, i); });
+      }
       pips.appendChild(pip);
     }
 
@@ -353,7 +404,7 @@ function render(){
     if(el) el.focus();
   }
 
-  const floorDone = MARKS.filter(m => data[m.id] >= m.target).length;
+  const floorDone = MARKS.filter(m => (shown[m.id] || 0) >= m.target).length;
   document.getElementById('floor-count').textContent = floorDone + ' / 3';
   document.getElementById('floor-footer').classList.toggle('done', floorDone === 3);
 
@@ -362,8 +413,12 @@ function render(){
   let full = 0, counted = 0;
   const grid = document.getElementById('grid');
   grid.textContent = '';
+  const LVL_NAME = { 0:'absent', 1:'thin', 2:'partial', 3:'full' };
   for(let w = 1; w <= total; w++){
-    const cell = document.createElement('span');
+    // Past and current cells are buttons: past opens the week lens on that
+    // week, current returns to live. The strip itself always shows the LIVE
+    // year's coverage — the lens only swaps what the marks card renders.
+    const cell = document.createElement(w <= week ? 'button' : 'span');
     cell.className = 'cell';
     if(w < week){
       const lvl = levelFor(loadWeek(keyFor(year, w)));
@@ -371,6 +426,9 @@ function render(){
       counted++;
       cell.style.background = P[lvl];
       cell.title = 'Week ' + w;
+      cell.setAttribute('aria-label', 'Week ' + w + ' — ' + LVL_NAME[lvl] + ', view');
+      cell.addEventListener('click', () => { viewing = { year, week: w }; render(); });
+      if(view && view.year === year && view.week === w) cell.classList.add('viewing');
     } else if(w === week){
       const lvl = levelFor(data);
       if(lvl === 3) full++;
@@ -378,10 +436,13 @@ function render(){
       cell.style.background = P[lvl];
       cell.classList.add('now');
       cell.title = 'Week ' + w + ' · now';
+      cell.setAttribute('aria-label', 'Week ' + w + ' — ' + LVL_NAME[lvl] + ' · now');
+      cell.addEventListener('click', () => { viewing = null; render(); });
     } else {
       cell.classList.add('future');
       cell.title = 'Week ' + w;
     }
+    if(cell.tagName === 'BUTTON') cell.type = 'button';
     grid.appendChild(cell);
   }
   document.getElementById('strip-year').textContent = year + ' · weekly coverage';
@@ -389,6 +450,7 @@ function render(){
 }
 
 document.getElementById('reset').addEventListener('click', reset);
+document.getElementById('back-live').addEventListener('click', () => { viewing = null; render(); });
 syncWeek();
 
 if('serviceWorker' in navigator){
