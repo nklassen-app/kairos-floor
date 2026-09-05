@@ -75,7 +75,8 @@ back to the live week.
 floor non-regression incl. the F1 lens, 3×(7/8/8) hardcoded circuits,
 debounced non-empty-only storage, one-open-at-a-time history incl. a
 February-clock cross-year walk, clock-forward rollover, and floor-reset
-isolation)*
+isolation — scratch that session; committed 2026-09-05 as `tests/floor.test.mjs`,
+run with `cd tests && npm test`)*
 
 **Design doc: `FLOOR_TRACKER_TAB.md`** (settled 2026-09-05). Prototype:
 `docs/workout-tracker.html` — source for the exercise list only; its art

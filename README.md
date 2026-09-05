@@ -17,6 +17,29 @@ python3 -m http.server 8080
 
 Open `http://localhost:8080`. On a phone, "Add to Home Screen" installs it standalone.
 
+## Test
+
+DOM-level suite: `index.html` booted in jsdom under a controllable clock, one
+fresh window per test (tabs, marks, the week lens, the tracker's storage /
+history / rollover, reset isolation, the version tag vs `sw.js`).
+
+```sh
+cd tests && npm install && npm test
+```
+
+## Layout
+
+```
+index.html                  the app — one file, no build
+sw.js                       service worker; CACHE name = the version tag shown in the page
+manifest.webmanifest        PWA manifest
+tests/floor.test.mjs        the DOM suite (node --test + jsdom)
+docs/workout-tracker.html   the training-log prototype — design source for the
+                            Tracker tab's exercise list only (FLOOR_TRACKER_TAB.md §6)
+native/                     Capacitor Android shell (FLOOR_NATIVE_WRAPPER.md)
+BACKLOG.md                  module backlog (F1 week lens, F2 tracker tab — both shipped)
+```
+
 ## Data model
 
 Per week, per mark, an integer count in `localStorage` under `floor-<year>-w<week>`:
