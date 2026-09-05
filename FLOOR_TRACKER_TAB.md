@@ -1,7 +1,7 @@
 # The Floor — Tracker tab design
 
 *Design doc for story **F2** in `BACKLOG.md`. Settled with N. 2026-09-05.
-Prototype: `workout-tracker.html` (in this repo, reference only — see §6).*
+Prototype: `docs/workout-tracker.html` (in this repo, reference only — see §6).*
 
 ## 1. What it is
 
@@ -125,7 +125,7 @@ no migration — a new week simply reads an absent key and renders blank.
   one keeps clearing floor marks only.
 - **Its storage** (`q3-2026-workout-log` key) — never read, never migrated.
 
-`workout-tracker.html` remains in the repo as the design source for the
+`docs/workout-tracker.html` remains in the repo as the design source for the
 exercise list; it is not linked from the app and not cached by the service
 worker.
 

@@ -78,7 +78,7 @@ February-clock cross-year walk, clock-forward rollover, and floor-reset
 isolation)*
 
 **Design doc: `FLOOR_TRACKER_TAB.md`** (settled 2026-09-05). Prototype:
-`workout-tracker.html` — source for the exercise list only; its art
+`docs/workout-tracker.html` — source for the exercise list only; its art
 direction, duration dial, notes, and storage are explicitly not ported.
 
 **Feature.** A second tab beside the floor. Three sections — Base,
