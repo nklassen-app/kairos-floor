@@ -170,6 +170,7 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 .cell.future{background:transparent;border:1px dashed var(--line)}
 .legend{display:flex;gap:13px;margin-top:14px;font-size:10.5px;color:var(--muted);flex-wrap:wrap}
 .legend span{display:flex;align-items:center;gap:6px}
+.ver{margin-top:18px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted);opacity:.65}
 .swatch{width:11px;height:11px;border-radius:3px;flex:none}
 .swatch.ahead{border:1px dashed var(--line);background:transparent}
 </style>
@@ -236,6 +237,10 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
       <div class="hint">Log this week's max weight per exercise (or BW).<br>Tap an exercise to see past weeks.</div>
     </div>
   </div>
+
+  <!-- keep in step with CACHE in sw.js — this is how a phone proves which
+       version it renders -->
+  <div class="ver">v5</div>
 
 </div>
 
@@ -696,8 +701,15 @@ document.getElementById('back-live').addEventListener('click', () => { viewing =
 syncWeek();
 renderTracker();
 
+// updateViaCache:'none' keeps the HTTP cache out of sw.js checks, and every
+// return to the foreground forces one — belt and braces for WebViews that
+// skip the automatic re-check.
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'visible') reg.update();
+    });
+  });
 }
 </script>
 </body>
