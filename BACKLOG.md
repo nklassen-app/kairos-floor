@@ -1,5 +1,9 @@
 # kairos-floor — Backlog
 
+> **Closed 2026-09-06 — history only, never edited again.** Every open item
+> for every Kairos app is managed on one surface: `kairos-system/BACKLOG.md`.
+> New work for this app is a new epic there under its heading.
+
 Working backlog for The Floor. Same convention as the Cockpit and Horizons
 backlogs: steps (`☐`) are the acceptance criteria and the functional progress
 units, **unweighted**. The Floor stays what it is — a weekly habit floor, no
