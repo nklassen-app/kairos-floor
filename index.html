@@ -240,7 +240,7 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 
   <!-- keep in step with CACHE in sw.js — this is how a phone proves which
        version it renders -->
-  <div class="ver">v5</div>
+  <div class="ver">v6</div>
 
 </div>
 
@@ -251,7 +251,7 @@ const MARKS = [
   { id:'yog', icon:'🧘', name:'Yoga',     sub:'2 sessions',               target:2, unit:'x' },
 ];
 
-// Tracker circuits: the prototype's exercises (docs/workout-tracker.html)
+// Tracker circuits: the training-log prototype's exercises (FLOOR_TRACKER_TAB.md)
 // regrouped by tier — Upper + Lower merged per tier. Ids are storage keys:
 // stable forever, even if a display name changes.
 const CIRCUITS = [
@@ -356,7 +356,11 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('focus', syncWeek);
 
-function persist(){ localStorage.setItem(key, JSON.stringify(data)); render(); }
+// A failed write (storage full/blocked) must not leave the screen stale.
+function persist(){
+  try{ localStorage.setItem(key, JSON.stringify(data)); }catch(e){}
+  render();
+}
 
 function levelFor(ws){
   if(!ws) return 0;

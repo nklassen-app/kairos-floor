@@ -34,10 +34,10 @@ index.html                  the app — one file, no build
 sw.js                       service worker; CACHE name = the version tag shown in the page
 manifest.webmanifest        PWA manifest
 tests/floor.test.mjs        the DOM suite (node --test + jsdom)
-docs/workout-tracker.html   the training-log prototype — design source for the
-                            Tracker tab's exercise list only (FLOOR_TRACKER_TAB.md §6)
 native/                     Capacitor Android shell (FLOOR_NATIVE_WRAPPER.md)
-BACKLOG.md                  module backlog (F1 week lens, F2 tracker tab — both shipped)
+FLOOR_TRACKER_TAB.md        design doc for the Tracker tab (F2)
+BACKLOG.md                  closed, history only — open work lives in
+                            kairos-system/BACKLOG.md
 ```
 
 ## Data model
@@ -46,6 +46,14 @@ Per week, per mark, an integer count in `localStorage` under `floor-<year>-w<wee
 
 ```json
 { "car": 0-5, "str": 0-2, "yog": 0-2 }
+```
+
+Tracker weights, per week, under `tracker-<year>-w<week>` — only the exercises
+logged that week, values as entered (short strings, `BW` allowed), keyed by the
+stable exercise ids in `CIRCUITS`:
+
+```json
+{ "bench": "22.5", "pullup": "BW" }
 ```
 
 Week numbering is the mock's custom formula (week 1 starts Jan 1 regardless of
@@ -62,3 +70,7 @@ the app starts with genuinely empty history.
 - Reset week → confirm dialog, clears the current week only.
 - The annual strip shows per-week coverage level (full / partial / thin / absent / ahead),
   with the current week outlined and updating live.
+- Tap a past week in the strip → the week lens: that week's floor, read-only, with
+  "Back to this week" (or tap the current cell) to return.
+- Tracker tab → three circuits (Base · Extension · Finisher); type this week's max
+  weight per exercise (autosaved), tap an exercise to see up to 26 past weeks.
