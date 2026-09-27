@@ -134,26 +134,39 @@ header{margin-bottom:20px}
 .reset:hover{border-color:var(--ink);color:var(--ink)}
 .reset:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
 
-/* tracker */
-.tracker-card{margin-bottom:16px}
-.tier-head{display:flex;justify-content:space-between;align-items:baseline;padding:16px 24px 3px}
-.tier-name{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
-.tier-span{font-family:var(--mono);font-size:12px;color:var(--muted)}
-.trows{padding:4px 10px 10px}
-.trow{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:11px;cursor:pointer}
-.trow:hover{background:rgba(0,0,0,.028)}
-.trow:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
-.trow-caret{font-size:10px;color:var(--muted);width:12px;flex:none}
-.trow-text{flex:1;min-width:0}
-.trow-name{font-size:14.5px;font-weight:600;display:block}
-.trow-rx{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1px}
-.trow input{
+/* workouts */
+.picker{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.pick{
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);
+  background:var(--panel);border:1px solid var(--line);border-radius:20px;
+  padding:7px 13px;cursor:pointer;
+}
+.pick[aria-pressed="true"]{background:var(--ena);border-color:var(--ena);color:var(--panel)}
+.pick:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+.part-card{margin-bottom:16px}
+.part-head{display:flex;justify-content:space-between;align-items:baseline;padding:16px 24px 3px}
+.part-name{font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.part-span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.wrows{padding:4px 10px 10px}
+.wrow{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.wrow-text{flex:1;min-width:0}
+.wrow-name{font-size:14.5px;font-weight:600;display:block}
+.wrow-rx{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1px}
+.wrow input{
   width:64px;height:34px;text-align:center;font-family:var(--mono);font-size:13px;
   border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);flex:none;
 }
-.trow input:focus{outline:2px solid var(--ena);background:#fff}
-.thist{font-family:var(--mono);font-size:11.5px;color:var(--muted);padding:0 14px 10px 36px;line-height:1.9}
-.thist b{color:var(--ink);font-weight:600}
+.wrow input::placeholder{color:#b3b8be}
+.wrow input:focus{outline:2px solid var(--ena);background:#fff}
+.record-row{display:flex;align-items:center;gap:12px;padding:0 4px;margin-bottom:18px}
+.record{
+  font-family:inherit;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;
+  color:var(--panel);background:var(--ink);border:1px solid var(--ink);border-radius:20px;
+  padding:9px 22px;cursor:pointer;flex:none;
+}
+.record:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+.record-status{font-size:12px;color:var(--muted);line-height:1.4}
+.record-status.ok{color:var(--ena);font-weight:600}
 
 /* annual strip */
 .strip{padding:17px 22px 19px}
@@ -189,7 +202,7 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 
   <div class="tabs" role="tablist" aria-label="Views">
     <button class="tab" role="tab" id="tab-floor" aria-selected="true" aria-controls="view-floor">Floor</button>
-    <button class="tab" role="tab" id="tab-tracker" aria-selected="false" aria-controls="view-tracker">Tracker</button>
+    <button class="tab" role="tab" id="tab-workouts" aria-selected="false" aria-controls="view-workouts">Workouts</button>
   </div>
 
   <div id="view-floor" role="tabpanel" aria-labelledby="tab-floor">
@@ -231,16 +244,21 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 
   </div><!-- /view-floor -->
 
-  <div id="view-tracker" role="tabpanel" aria-labelledby="tab-tracker" hidden>
-    <div id="tracker-sections"></div>
+  <div id="view-workouts" role="tabpanel" aria-labelledby="tab-workouts" hidden>
+    <div class="picker" id="picker" role="group" aria-label="Routine"></div>
+    <div id="workout-parts"></div>
+    <div class="record-row">
+      <button class="record" id="record" type="button">Record</button>
+      <div class="record-status" id="record-status" role="status" aria-live="polite"></div>
+    </div>
     <div class="actions">
-      <div class="hint">Log this week's max weight per exercise (or BW).<br>Tap an exercise to see past weeks.</div>
+      <div class="hint">Type the weight you used (or BW). Grey = last time.<br>Tap Record at the end of the session.</div>
     </div>
   </div>
 
   <!-- keep in step with CACHE in sw.js — this is how a phone proves which
        version it renders -->
-  <div class="ver">v6</div>
+  <div class="ver">v7</div>
 
 </div>
 
@@ -251,38 +269,61 @@ const MARKS = [
   { id:'yog', icon:'🧘', name:'Yoga',     sub:'2 sessions',               target:2, unit:'x' },
 ];
 
-// Tracker circuits: the training-log prototype's exercises (FLOOR_TRACKER_TAB.md)
-// regrouped by tier — Upper + Lower merged per tier. Ids are storage keys:
-// stable forever, even if a display name changes.
-const CIRCUITS = [
-  { name:'Base', span:'0–20′', exercises:[
-    { id:'bench',     name:'Flat DB Bench Press',        rx:'3 × 8' },
-    { id:'dbrow',     name:'One-Arm DB Row',             rx:'3 × 10 / side' },
-    { id:'ohp',       name:'Seated DB Shoulder Press',   rx:'3 × 10' },
-    { id:'kbswing',   name:'Kettlebell Swing',           rx:'4 rnd · 40/20' },
-    { id:'goblet',    name:'Goblet Squat',               rx:'4 rnd · 40/20' },
-    { id:'lunge',     name:'Alternating Reverse Lunge',  rx:'4 rnd · 40/20' },
-    { id:'mclimb',    name:'Mountain Climbers',          rx:'2 rnd · 40/20' },
+// Workout routines (kairos-system BACKLOG, Workouts epic): three routines,
+// each in the plan's three parts. Only loadable exercises are tracked;
+// changing a routine is a push, not an in-app edit. Ids are storage keys:
+// stable forever — a rename changes only `name`. `airplane` is one id in
+// Lower and Posture, so its progression is one line.
+const ROUTINES = [
+  { id:'upper', name:'Upper Body', parts:[
+    { name:'Part 1', span:'20′', exercises:[
+      { id:'bench',    name:'DB Bench Press (flat/incline)',     rx:'4 × 8–10' },
+      { id:'csrow',    name:'Chest-Supported DB Row',            rx:'4 × 8–10' },
+    ]},
+    { name:'Part 2', span:'40′', exercises:[
+      { id:'hkpress',  name:'Half-Kneeling 1-Arm DB Press',      rx:'3 × 8–10 / side' },
+      { id:'pulldown', name:'Lat Pulldown / Neutral-Grip Pull-up', rx:'3 × 8–10' },
+      { id:'dips',     name:'Dips / Push-ups',                   rx:'3 × 10–15' },
+    ]},
+    { name:'Part 3', span:'60′', exercises:[
+      { id:'latraise', name:'DB Lateral Raise',                  rx:'3 × 12–15' },
+      { id:'reardelt', name:'Incline Rear Delt Fly',             rx:'3 × 12–15' },
+      { id:'hammer',   name:'Hammer Curl',                       rx:'3 × 10–12' },
+      { id:'triext',   name:'Overhead Triceps Extension',        rx:'3 × 10–12' },
+      { id:'hang',     name:'Scapular Hang',                     rx:'3 × 30 s' },
+    ]},
   ]},
-  { name:'Extension', span:'20–40′', exercises:[
-    { id:'incline',   name:'Incline DB Press',           rx:'3 × 10' },
-    { id:'pullup',    name:'Pull-Ups or Lat Pulldown',   rx:'3 × 8' },
-    { id:'curl',      name:'DB Biceps Curl',             rx:'3 × 12' },
-    { id:'triext',    name:'Overhead Triceps Extension', rx:'3 × 12' },
-    { id:'rdl',       name:'DB Romanian Deadlift',       rx:'3 rnd · 40/20' },
-    { id:'jsquat',    name:'Jump Squat',                 rx:'3 rnd · 40/20' },
-    { id:'stepup',    name:'Weighted Step-Up',           rx:'3 rnd · 40/20 / side' },
-    { id:'plank',     name:'Plank Hold',                 rx:'3 rnd · 40/20' },
+  { id:'lower', name:'Lower Body', parts:[
+    { name:'Part 1', span:'20′', exercises:[
+      { id:'deadlift', name:'Trap Bar Deadlift / DB RDL',        rx:'4 × 6–8' },
+      { id:'spanish',  name:'Spanish Squat / Wall Sit',          rx:'3 × 30–45 s' },
+    ]},
+    { name:'Part 2', span:'40′', exercises:[
+      { id:'slrdl',    name:'Single-Leg RDL (kickstand)',        rx:'3 × 8–10 / side' },
+      { id:'legcurl',  name:'Hamstring Glider / Leg Curl',       rx:'3 × 10–12' },
+      { id:'tke',      name:'Terminal Knee Extension (band)',    rx:'3 × 15 / leg' },
+    ]},
+    { name:'Part 3', span:'60′', exercises:[
+      { id:'legraise', name:'Side-Lying Leg Raise',              rx:'3 × 12' },
+      { id:'airplane', name:'Hip Airplane',                      rx:'3 × 5 / side' },
+      { id:'farmer',   name:"Farmer's Walk",                     rx:'4 × 40–50 m' },
+    ]},
   ]},
-  { name:'Finisher', span:'40–60′', exercises:[
-    { id:'latraise',  name:'Lateral Raise',              rx:'3 × 15' },
-    { id:'facepull',  name:'Face Pull (band/cable)',     rx:'3 × 15' },
-    { id:'carry',     name:"Farmer's Carry",             rx:'3 × 40 m' },
-    { id:'kneeraise', name:'Hanging Knee Raise',         rx:'3 × 12' },
-    { id:'hipthrust', name:'Hip Thrust',                 rx:'3 rnd · 40/20' },
-    { id:'bulgarian', name:'Bulgarian Split Squat',      rx:'3 rnd · 40/20 / side' },
-    { id:'burpee',    name:'Burpees',                    rx:'3 rnd · 40/20' },
-    { id:'calf',      name:'Standing Calf Raise',        rx:'3 rnd · 40/20' },
+  { id:'posture', name:'Posture & Stability', parts:[
+    { name:'Part 1', span:'20′', exercises:[
+      { id:'ytw',      name:'Prone Y-T-W Raise',                 rx:'3 × 8 / letter' },
+      { id:'facepull', name:'Banded Face Pull',                  rx:'3 × 15' },
+      { id:'deadbug',  name:'Dead Bug with KB Press',            rx:'3 × 8 / side' },
+    ]},
+    { name:'Part 2', span:'40′', exercises:[
+      { id:'airplane', name:'Hip Airplane (supported)',          rx:'3 × 6–8 / side' },
+      { id:'march',    name:'Banded Hip March',                  rx:'3 × 12 / leg' },
+      { id:'pallof',   name:'Pallof Press + Overhead Raise',     rx:'3 × 10 / side' },
+    ]},
+    { name:'Part 3', span:'60′', exercises:[
+      { id:'suitcase', name:'Suitcase Carry',                    rx:'4 × 30 m / side' },
+      { id:'backext',  name:'Back Extension Hold',               rx:'3 × 30–45 s' },
+    ]},
   ]},
 ];
 
@@ -320,15 +361,6 @@ function loadWeek(k){
 }
 let data = loadWeek(key) || { car:0, str:0, yog:0 };
 
-// Tracker storage mirrors the floor's: one record per week, holding only
-// the exercises logged that week, values as entered (strings, "BW" ok).
-function trackerKeyFor(y, w){ return 'tracker-' + y + '-w' + w; }
-function loadTracker(k){
-  try{ const raw = localStorage.getItem(k); if(raw) return JSON.parse(raw); }catch(e){}
-  return {};
-}
-let tdata = loadTracker(trackerKeyFor(year, week));
-
 // Week lens: a past week being viewed read-only, or null = live. Kept as
 // {year, week} rather than a key so a year rollover underneath the viewer
 // can't repoint it — the live year/week/key advance in syncWeek(), the
@@ -346,8 +378,6 @@ function syncWeek(){
   if(k !== key){
     year = y; week = w; key = k;
     data = loadWeek(key) || { car:0, str:0, yog:0 };
-    tdata = loadTracker(trackerKeyFor(year, week));
-    renderTracker();
   }
   render();
 }
@@ -551,159 +581,181 @@ function render(){
   document.getElementById('strip-cov').textContent = full + ' of ' + counted + ' weeks full';
 }
 
-/* ---- tracker tab ---- */
+/* ---- workouts tab ---- */
 
-// Debounced autosave. Only non-empty values are stored; a week with nothing
-// logged keeps no record at all (rollover then just reads an absent key).
-let tSaveTimer;
-function persistTracker(){
-  clearTimeout(tSaveTimer);
-  tSaveTimer = setTimeout(() => {
-    const clean = {};
-    Object.keys(tdata).forEach(id => { if(tdata[id] !== '') clean[id] = tdata[id]; });
-    tdata = clean;
-    try{
-      if(Object.keys(clean).length) localStorage.setItem(trackerKeyFor(year, week), JSON.stringify(clean));
-      else localStorage.removeItem(trackerKeyFor(year, week));
-    }catch(e){}
-  }, 400);
+// Recorded workouts: one array, oldest first, under `workouts-log` —
+// { id, routine, at (ISO date-time), weights: { exId: value } }, non-empty
+// fields only. The old weekly `tracker-*` keys are left in storage, unread.
+const LOG_KEY = 'workouts-log';
+// Typed-but-unrecorded weights, per routine, so a tab switch or the app
+// going to the background loses nothing: { routine, fields: { upper: {…} } }.
+const DRAFT_KEY = 'workouts-draft';
+
+function loadJSON(k, fallback){
+  try{ const raw = localStorage.getItem(k); if(raw) return JSON.parse(raw); }catch(e){}
+  return fallback;
+}
+function loadLog(){ const l = loadJSON(LOG_KEY, []); return Array.isArray(l) ? l : []; }
+
+let draft = loadJSON(DRAFT_KEY, null);
+if(!draft || typeof draft !== 'object' || !draft.fields) draft = { routine: ROUTINES[0].id, fields: {} };
+if(!ROUTINES.some(r => r.id === draft.routine)) draft.routine = ROUTINES[0].id;
+
+function saveDraft(){
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }catch(e){}
 }
 
-// Past values for one exercise: walk back up to 26 weeks from the current,
-// crossing the year boundary; logged weeks only, oldest → newest.
-function trackerHistory(id){
-  const out = [];
-  let y = year, w = week;
-  for(let i = 0; i < 26; i++){
-    w--;
-    if(w < 1){ y--; w = weekNumber(new Date(y, 11, 31)); }
-    const v = loadTracker(trackerKeyFor(y, w))[id];
-    if(v != null) out.push({ y, w, v });
-  }
-  return out.reverse();
+// The last recorded value per exercise, across all routines — shown as a
+// grey placeholder, never saved into the field.
+function lastWeights(){
+  const last = {};
+  loadLog().forEach(w => { Object.assign(last, w.weights || {}); });
+  return last;
 }
 
-// Rebuilt only on load and week rollover — never per keystroke, so typing
-// keeps its focus. History panels collapse on rebuild (default state).
-function renderTracker(){
-  const host = document.getElementById('tracker-sections');
+function currentRoutine(){ return ROUTINES.find(r => r.id === draft.routine); }
+
+function setStatus(text, ok){
+  const el = document.getElementById('record-status');
+  el.textContent = text;
+  el.classList.toggle('ok', !!ok);
+}
+
+function renderPicker(){
+  const host = document.getElementById('picker');
   host.textContent = '';
-  CIRCUITS.forEach(sec => {
+  ROUTINES.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pick';
+    b.dataset.id = r.id;
+    b.textContent = r.name;
+    b.setAttribute('aria-pressed', String(r.id === draft.routine));
+    b.addEventListener('click', () => {
+      if(r.id === draft.routine) return;
+      draft.routine = r.id;
+      saveDraft();
+      setStatus('');
+      renderWorkouts();
+    });
+    host.appendChild(b);
+  });
+}
+
+// Rebuilt on routine switch and after Record — never per keystroke, so
+// typing keeps its focus.
+function renderWorkouts(){
+  renderPicker();
+  const r = currentRoutine();
+  const fields = draft.fields[r.id] || {};
+  const last = lastWeights();
+  const host = document.getElementById('workout-parts');
+  host.textContent = '';
+  r.parts.forEach(part => {
     const card = document.createElement('div');
-    card.className = 'card tracker-card';
+    card.className = 'card part-card';
 
     const head = document.createElement('div');
-    head.className = 'tier-head';
+    head.className = 'part-head';
     const nm = document.createElement('span');
-    nm.className = 'tier-name';
-    nm.textContent = sec.name;
+    nm.className = 'part-name';
+    nm.textContent = part.name;
     const sp = document.createElement('span');
-    sp.className = 'tier-span';
-    sp.textContent = sec.span;
+    sp.className = 'part-span';
+    sp.textContent = part.span;
     head.append(nm, sp);
     card.appendChild(head);
 
     const rows = document.createElement('div');
-    rows.className = 'trows';
-    sec.exercises.forEach((ex, idx) => {
+    rows.className = 'wrows';
+    part.exercises.forEach((ex, idx) => {
       if(idx > 0){
         const div = document.createElement('div');
         div.className = 'divider';
         rows.appendChild(div);
       }
-
       const row = document.createElement('div');
-      row.className = 'trow';
-      row.tabIndex = 0;
-      row.setAttribute('role', 'button');
-      row.setAttribute('aria-expanded', 'false');
-
-      const caret = document.createElement('span');
-      caret.className = 'trow-caret';
-      caret.textContent = '▸';
+      row.className = 'wrow';
 
       const text = document.createElement('span');
-      text.className = 'trow-text';
+      text.className = 'wrow-text';
       const name = document.createElement('span');
-      name.className = 'trow-name';
+      name.className = 'wrow-name';
       name.textContent = ex.name;
       const rx = document.createElement('span');
-      rx.className = 'trow-rx';
+      rx.className = 'wrow-rx';
       rx.textContent = ex.rx;
       text.append(name, rx);
 
       const input = document.createElement('input');
       input.type = 'text';
-      input.maxLength = 6;
+      input.maxLength = 8;
       input.setAttribute('inputmode', 'decimal');
-      input.setAttribute('aria-label', ex.name + " — this week's max weight");
-      input.value = tdata[ex.id] || '';
-      input.addEventListener('input', () => { tdata[ex.id] = input.value.trim(); persistTracker(); });
-      input.addEventListener('click', e => e.stopPropagation());
-      input.addEventListener('keydown', e => e.stopPropagation());
-
-      const hist = document.createElement('div');
-      hist.className = 'thist';
-      hist.hidden = true;
-
-      function toggle(){
-        const open = hist.hidden;
-        // one open at a time
-        host.querySelectorAll('.thist').forEach(h => { h.hidden = true; });
-        host.querySelectorAll('.trow').forEach(r => {
-          r.setAttribute('aria-expanded', 'false');
-          r.querySelector('.trow-caret').textContent = '▸';
-        });
-        if(open){
-          hist.textContent = '';
-          const past = trackerHistory(ex.id);
-          if(!past.length){
-            hist.textContent = 'No past entries yet.';
-          } else {
-            past.forEach((p, i) => {
-              const label = document.createTextNode(
-                (i ? ' · ' : '') + 'W' + p.w + (p.y !== year ? '/' + String(p.y).slice(2) : '') + ' ');
-              const val = document.createElement('b');
-              val.textContent = p.v;
-              hist.append(label, val);
-            });
-          }
-          hist.hidden = false;
-          row.setAttribute('aria-expanded', 'true');
-          caret.textContent = '▾';
-        }
-      }
-      row.addEventListener('click', toggle);
-      row.addEventListener('keydown', e => {
-        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); }
+      input.setAttribute('aria-label', ex.name + ' — weight used' +
+        (last[ex.id] != null ? ' (last time ' + last[ex.id] + ')' : ''));
+      input.dataset.id = ex.id;
+      input.value = fields[ex.id] || '';
+      input.placeholder = last[ex.id] != null ? last[ex.id] : '';
+      input.addEventListener('input', () => {
+        const f = draft.fields[r.id] || (draft.fields[r.id] = {});
+        const v = input.value.trim();
+        if(v) f[ex.id] = v; else delete f[ex.id];
+        if(!Object.keys(f).length) delete draft.fields[r.id];
+        saveDraft();
+        setStatus('');
       });
 
-      row.append(caret, text, input);
-      rows.append(row, hist);
+      row.append(text, input);
+      rows.appendChild(row);
     });
     card.appendChild(rows);
     host.appendChild(card);
   });
 }
 
+function recordWorkout(){
+  const r = currentRoutine();
+  const weights = {};
+  Object.entries(draft.fields[r.id] || {}).forEach(([id, v]) => {
+    v = String(v).trim();
+    if(v) weights[id] = v;
+  });
+  if(!Object.keys(weights).length){
+    setStatus('Nothing to record — type at least one weight.');
+    return;
+  }
+  const at = new Date();
+  const log = loadLog();
+  log.push({ id: 'w' + at.getTime().toString(36), routine: r.id, at: at.toISOString(), weights });
+  // A failed write (storage full/blocked) keeps the typed weights and says so.
+  try{ localStorage.setItem(LOG_KEY, JSON.stringify(log)); }
+  catch(e){ setStatus('Could not save — storage is full or blocked.'); return; }
+  delete draft.fields[r.id];
+  saveDraft();
+  renderWorkouts();
+  setStatus('Recorded — ' + r.name + ', ' +
+    at.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' }) + '.', true);
+}
+document.getElementById('record').addEventListener('click', recordWorkout);
+
 /* ---- tabs ---- */
 function showTab(which){
   const floor = which === 'floor';
   document.getElementById('view-floor').hidden = !floor;
-  document.getElementById('view-tracker').hidden = floor;
+  document.getElementById('view-workouts').hidden = floor;
   document.getElementById('tab-floor').setAttribute('aria-selected', String(floor));
-  document.getElementById('tab-tracker').setAttribute('aria-selected', String(!floor));
-  // Switching to the tracker leaves the week lens — the shared header always
+  document.getElementById('tab-workouts').setAttribute('aria-selected', String(!floor));
+  // Switching to workouts leaves the week lens — the shared header always
   // shows the live week there.
   if(!floor && viewing){ viewing = null; render(); }
 }
 document.getElementById('tab-floor').addEventListener('click', () => showTab('floor'));
-document.getElementById('tab-tracker').addEventListener('click', () => showTab('tracker'));
+document.getElementById('tab-workouts').addEventListener('click', () => showTab('workouts'));
 
 document.getElementById('reset').addEventListener('click', reset);
 document.getElementById('back-live').addEventListener('click', () => { viewing = null; render(); });
 syncWeek();
-renderTracker();
+renderWorkouts();
 
 // updateViaCache:'none' keeps the HTTP cache out of sw.js checks, and every
 // return to the foreground forces one — belt and braces for WebViews that

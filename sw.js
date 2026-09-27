@@ -1,4 +1,4 @@
-const CACHE = 'floor-v6';
+const CACHE = 'floor-v7';
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', e => {

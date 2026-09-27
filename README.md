@@ -20,8 +20,8 @@ Open `http://localhost:8080`. On a phone, "Add to Home Screen" installs it stand
 ## Test
 
 DOM-level suite: `index.html` booted in jsdom under a controllable clock, one
-fresh window per test (tabs, marks, the week lens, the tracker's storage /
-history / rollover, reset isolation, the version tag vs `sw.js`).
+fresh window per test (tabs, marks, the week lens, the Workouts tab's routines /
+Record / hint / draft, reset isolation, the version tag vs `sw.js`).
 
 ```sh
 cd tests && npm install && npm test
@@ -35,7 +35,8 @@ sw.js                       service worker; CACHE name = the version tag shown i
 manifest.webmanifest        PWA manifest
 tests/floor.test.mjs        the DOM suite (node --test + jsdom)
 native/                     Capacitor Android shell (FLOOR_NATIVE_WRAPPER.md)
-FLOOR_TRACKER_TAB.md        design doc for the Tracker tab (F2)
+FLOOR_TRACKER_TAB.md        design doc for the old Tracker tab (F2, replaced by
+                            Workouts in F3)
 BACKLOG.md                  closed, history only — open work lives in
                             kairos-system/BACKLOG.md
 ```
@@ -48,13 +49,20 @@ Per week, per mark, an integer count in `localStorage` under `floor-<year>-w<wee
 { "car": 0-5, "str": 0-2, "yog": 0-2 }
 ```
 
-Tracker weights, per week, under `tracker-<year>-w<week>` — only the exercises
-logged that week, values as entered (short strings, `BW` allowed), keyed by the
-stable exercise ids in `CIRCUITS`:
+Recorded workouts, one array under `workouts-log`, oldest first — only the
+fields typed, values as entered (short strings, `BW` allowed), keyed by the
+stable exercise ids in `ROUTINES`:
 
 ```json
-{ "bench": "22.5", "pullup": "BW" }
+[{ "id": "wmg2k1x0", "routine": "upper", "at": "2026-09-28T16:30:00.000Z",
+   "weights": { "bench": "22.5", "dips": "BW" } }]
 ```
+
+Typed-but-unrecorded weights sit under `workouts-draft` until Record:
+`{ "routine": "upper", "fields": { "upper": { "bench": "22.5" } } }`.
+
+The old weekly tracker records (`tracker-<year>-w<week>`, F2) stay in storage,
+never read or shown — a fresh start, reversible.
 
 Week numbering is the mock's custom formula (week 1 starts Jan 1 regardless of
 weekday), preserved exactly so stored keys stay stable. Not ISO-8601 — don't swap
@@ -72,5 +80,8 @@ the app starts with genuinely empty history.
   with the current week outlined and updating live.
 - Tap a past week in the strip → the week lens: that week's floor, read-only, with
   "Back to this week" (or tap the current cell) to return.
-- Tracker tab → three circuits (Base · Extension · Finisher); type this week's max
-  weight per exercise (autosaved), tap an exercise to see up to 26 past weeks.
+- Workouts tab → pick Upper Body, Lower Body or Posture & Stability; each shows its
+  three parts (20′ · 40′ · 60′) with an empty weight field per exercise and last
+  time's weight as a grey hint. Record saves the workout with today's date and
+  clears the fields; an empty Record is refused. Record never ticks a pip.
+  Routines change by push (edit `ROUTINES`, bump `sw.js`), not in the app.

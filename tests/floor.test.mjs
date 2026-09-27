@@ -47,7 +47,7 @@ function boot({ now = new Date(2026, 8, 5, 10, 0), seed = {} } = {}) {
     year: now.getFullYear(),
     week: w.weekNumber(now),
     marks: w.eval('MARKS'),
-    circuits: w.eval('CIRCUITS'),
+    routines: w.eval('ROUTINES'),
   };
 }
 
@@ -71,15 +71,15 @@ test('version tag in the page matches the service worker cache name', () => {
 
 /* ---- tabs ---- */
 
-test('opens on the Floor; the Tracker tab swaps panels and aria-selected', () => {
+test('opens on the Floor; the Workouts tab swaps panels and aria-selected', () => {
   const { $ } = boot();
   assert.equal($('#view-floor').hidden, false);
-  assert.equal($('#view-tracker').hidden, true);
+  assert.equal($('#view-workouts').hidden, true);
   assert.equal($('#tab-floor').getAttribute('aria-selected'), 'true');
-  $('#tab-tracker').click();
+  $('#tab-workouts').click();
   assert.equal($('#view-floor').hidden, true);
-  assert.equal($('#view-tracker').hidden, false);
-  assert.equal($('#tab-tracker').getAttribute('aria-selected'), 'true');
+  assert.equal($('#view-workouts').hidden, false);
+  assert.equal($('#tab-workouts').getAttribute('aria-selected'), 'true');
   assert.equal($('#tab-floor').getAttribute('aria-selected'), 'false');
   $('#tab-floor').click();
   assert.equal($('#view-floor').hidden, false);
@@ -154,7 +154,7 @@ test('week lens: a past cell renders that week read-only; back returns live', ()
   assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 2');
 });
 
-test('week lens: a week with no record is the empty floor; the live cell and the tracker tab leave the lens', () => {
+test('week lens: a week with no record is the empty floor; the live cell and the workouts tab leave the lens', () => {
   const { $, $$, week } = boot();
   $$('#grid .cell')[week - 3].click();
   assert.equal($('#floor-count').textContent, '0 / 3');
@@ -162,97 +162,139 @@ test('week lens: a week with no record is the empty floor; the live cell and the
   $$('#grid .cell')[week - 1].click();                  // the `now` cell
   assert.equal($('#viewbar').hidden, true);
   $$('#grid .cell')[week - 3].click();
-  $('#tab-tracker').click();
+  $('#tab-workouts').click();
   assert.equal($('#viewbar').hidden, true, 'switching tabs drops the lens');
   assert.equal($('#week-tag').textContent, `W${week}`);
 });
 
-/* ---- F2: the tracker ---- */
+/* ---- F3: record a workout ---- */
 
-test('three circuits of 7 / 8 / 8 exercises, ids unique, fields blank', () => {
-  const { $$, circuits } = boot();
-  assert.deepEqual(Array.from(circuits, c => c.exercises.length), [7, 8, 8]);
-  const ids = Array.from(circuits).flatMap(c => Array.from(c.exercises, e => e.id));
-  assert.equal(new Set(ids).size, 23);
-  assert.equal($$('.tracker-card').length, 3);
-  assert.deepEqual($$('.tracker-card').map(c => c.querySelectorAll('.trow').length), [7, 8, 8]);
-  assert.ok($$('.trow input').every(i => i.value === ''));
-  assert.ok($$('.thist').every(h => h.hidden));
-});
+const type = (h, id, v) => {
+  const i = h.$(`#workout-parts input[data-id="${id}"]`);
+  i.value = v;
+  i.dispatchEvent(new h.w.Event('input'));
+  return i;
+};
 
-test('tracker storage: debounced, non-empty values only, cleared week removes the record', async () => {
+test('three routines × three parts, 26 rows over 25 ids; Hip Airplane shared; fields blank', () => {
   const h = boot();
-  const { $, stored, year, week, circuits } = h;
-  const key = `tracker-${year}-w${week}`;
-  const first = circuits[0].exercises[0].id;
-  const input = $('.trow input');
-  input.value = ' 20 ';
-  input.dispatchEvent(new h.w.Event('input'));
-  assert.equal(stored(key), null, 'nothing written before the debounce');
-  await sleep(500);
-  assert.deepEqual(stored(key), { [first]: '20' });
-  input.value = '';
-  input.dispatchEvent(new h.w.Event('input'));
-  await sleep(500);
-  assert.equal(stored(key), null, 'an empty week keeps no record');
+  const { $, $$, routines } = h;
+  assert.deepEqual(Array.from(routines, r => r.name), ['Upper Body', 'Lower Body', 'Posture & Stability']);
+  assert.ok(Array.from(routines).every(r => r.parts.length === 3));
+  const per = Array.from(routines, r => r.parts.flatMap(p => Array.from(p.exercises, e => e.id)));
+  assert.deepEqual(per.map(ids => ids.length), [10, 8, 8]);
+  assert.equal(new Set(per.flat()).size, 25);
+  assert.ok(per[1].includes('airplane') && per[2].includes('airplane'));
+  per.forEach(ids => assert.equal(new Set(ids).size, ids.length, 'no id twice within a routine'));
+  // opens on Upper Body
+  assert.equal($('.pick[aria-pressed="true"]').textContent, 'Upper Body');
+  assert.equal($$('.part-card').length, 3);
+  assert.deepEqual($$('.part-card .part-name').map(e => e.textContent), ['Part 1', 'Part 2', 'Part 3']);
+  assert.equal($$('#workout-parts input').length, 10);
+  assert.ok($$('#workout-parts input').every(i => i.value === '' && i.placeholder === ''));
+  $$('.pick')[2].click();
+  assert.equal($('.pick[aria-pressed="true"]').textContent, 'Posture & Stability');
+  assert.equal($$('#workout-parts input').length, 8);
 });
 
-test('history: logged weeks only, oldest → newest, across the year boundary, one open at a time', () => {
-  const now = new Date(2026, 1, 10, 9, 0);           // February: 26 weeks back crosses into 2025
-  const h = boot({ now, seed: {} });
-  const last2025 = h.w.weekNumber(new Date(2025, 11, 31));
-  const id = h.circuits[0].exercises[0].id;
-  const week = h.week;
-  const { $, $$ } = boot({
-    now,
-    seed: {
-      [`tracker-2025-w${last2025}`]: { [id]: '18' },
-      [`tracker-2026-w1`]: { [id]: '20' },
-      [`tracker-2026-w${week - 1}`]: { [id]: '22' },
-      [`tracker-2026-w${week - 2}`]: { other: 'x' },   // logged week, but not this exercise
-    },
-  });
-  const rows = $$('.trow');
-  rows[0].click();
-  assert.equal(rows[0].getAttribute('aria-expanded'), 'true');
-  assert.equal(rows[0].querySelector('.trow-caret').textContent, '▾');
-  const hist = $$('.thist')[0];
-  assert.equal(hist.hidden, false);
-  assert.equal(hist.textContent, `W${last2025}/25 18 · W1 20 · W${week - 1} 22`);
-  rows[1].click();
-  assert.equal(hist.hidden, true, 'opening another row closes the first');
-  assert.equal(rows[0].getAttribute('aria-expanded'), 'false');
-  assert.equal($$('.thist')[1].textContent, 'No past entries yet.');
-  rows[1].click();
-  assert.equal($$('.thist')[1].hidden, true, 'tapping the open row closes it');
-  assert.equal($$('.thist').filter(x => !x.hidden).length, 0);
+test('Record saves the workout with its date and non-empty weights, clears the fields, confirms', () => {
+  const now = new Date(2026, 8, 28, 18, 30);
+  const h = boot({ now });
+  const { $, $$, stored } = h;
+  type(h, 'bench', ' 22.5 ');
+  type(h, 'dips', 'BW');
+  type(h, 'hammer', '   ');
+  $('#record').click();
+  const log = stored('workouts-log');
+  assert.equal(log.length, 1);
+  assert.equal(log[0].routine, 'upper');
+  assert.equal(log[0].at, now.toISOString());
+  assert.deepEqual(log[0].weights, { bench: '22.5', dips: 'BW' });
+  assert.equal(typeof log[0].id, 'string');
+  assert.ok($$('#workout-parts input').every(i => i.value === ''));
+  assert.match($('#record-status').textContent, /^Recorded — Upper Body/);
+  assert.equal($('#record-status').classList.contains('ok'), true);
+  assert.equal(stored('workouts-draft').fields.upper, undefined, 'the draft for the routine is cleared');
 });
 
-test('rollover: the tracker blanks its fields, keeps the old record, and the old week shows in history', async () => {
+test('an empty Record is refused and writes nothing', () => {
   const h = boot();
-  const { $, $$, stored, year, week, circuits } = h;
-  const id = circuits[0].exercises[0].id;
-  const input = $('.trow input');
-  input.value = '20';
-  input.dispatchEvent(new h.w.Event('input'));
-  await sleep(500);
-  h.setClock(new Date(h.w.weekStart(year, week).getTime() + 7 * DAY + DAY / 2));
-  assert.equal($('.trow input').value, '');
-  assert.deepEqual(stored(`tracker-${year}-w${week}`), { [id]: '20' });
-  assert.equal(stored(`tracker-${year}-w${week + 1}`), null);
-  $$('.trow')[0].click();
-  assert.equal($$('.thist')[0].textContent, `W${week} 20`);
+  const { $, stored } = h;
+  type(h, 'bench', '  ');
+  $('#record').click();
+  assert.equal(stored('workouts-log'), null);
+  assert.match($('#record-status').textContent, /Nothing to record/);
+  assert.equal($('#record-status').classList.contains('ok'), false);
 });
 
-test('Reset week clears the floor marks only; tracker data survives', () => {
-  const { $, stored, year, week } = boot({
-    seed: { [`tracker-2026-w36`]: { bench: '20' } },
-  });
-  assert.equal(week, 36, 'the fixed clock is week 36 of 2026');
+test('reload round-trip: the log survives and the last value shows as a grey hint, never as a value', () => {
+  const h = boot({ now: new Date(2026, 8, 21, 18, 0) });
+  type(h, 'bench', '20');
+  h.$('#record').click();
+  const log = h.stored('workouts-log');
+  const r = boot({ now: new Date(2026, 8, 28, 18, 0), seed: { 'workouts-log': log } });
+  const i = r.$('#workout-parts input[data-id="bench"]');
+  assert.equal(i.value, '');
+  assert.equal(i.placeholder, '20');
+  assert.equal(r.$('#workout-parts input[data-id="csrow"]').placeholder, '');
+  type(r, 'bench', '22');
+  r.$('#record').click();
+  assert.deepEqual(r.stored('workouts-log').map(w => w.weights.bench), ['20', '22']);
+  assert.equal(r.$('#workout-parts input[data-id="bench"]').placeholder, '22', 'the newest value wins');
+});
+
+test('the hint is per exercise id across routines — Hip Airplane is one line', () => {
+  const h = boot();
+  h.$$('.pick')[1].click();                              // Lower Body
+  type(h, 'airplane', '4');
+  h.$('#record').click();
+  h.$$('.pick')[2].click();                              // Posture & Stability
+  assert.equal(h.$('#workout-parts input[data-id="airplane"]').placeholder, '4');
+  assert.equal(h.stored('workouts-log')[0].routine, 'lower');
+});
+
+test('typed-but-unrecorded weights survive a routine switch, a tab switch and a reload', () => {
+  const h = boot();
+  const { $, $$ } = h;
+  $('#tab-workouts').click();
+  type(h, 'bench', '24');
+  $$('.pick')[1].click();
+  type(h, 'deadlift', '60');
+  $('#tab-floor').click();
+  $('#tab-workouts').click();
+  assert.equal($('#workout-parts input[data-id="deadlift"]').value, '60');
+  $$('.pick')[0].click();
+  assert.equal($('#workout-parts input[data-id="bench"]').value, '24');
+  const r = boot({ seed: { 'workouts-draft': h.stored('workouts-draft') } });
+  assert.equal(r.$('.pick[aria-pressed="true"]').textContent, 'Upper Body');
+  assert.equal(r.$('#workout-parts input[data-id="bench"]').value, '24');
+  assert.equal(r.stored('workouts-log'), null, 'a draft is not a record');
+  // Record takes only the current routine; the other routine's draft stays
+  r.$('#record').click();
+  assert.deepEqual(r.stored('workouts-log')[0].weights, { bench: '24' });
+  r.$$('.pick')[1].click();
+  assert.equal(r.$('#workout-parts input[data-id="deadlift"]').value, '60');
+});
+
+test('old tracker data stays in storage untouched; the Floor tab is unaffected by Record', () => {
+  const h = boot({ seed: { 'tracker-2026-w36': { bench: '20' } } });
+  const { $, stored, year, week } = h;
+  assert.equal($('#workout-parts input[data-id="bench"]').placeholder, '', 'old tracker data is never read');
+  $('.row[data-id="str"]').click();
+  type(h, 'bench', '22');
+  $('#record').click();
+  assert.deepEqual(stored('tracker-2026-w36'), { bench: '20' });
+  assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 1, yog: 0 }, 'Record never ticks a pip');
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 2');
+});
+
+test('Reset week clears the floor marks only; the workout log survives', () => {
+  const h = boot();
+  const { $, stored, year, week } = h;
+  type(h, 'bench', '20');
+  $('#record').click();
   $('.row[data-id="car"]').click();
-  $('.row[data-id="yog"]').click();
   $('#reset').click();
   assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 0, yog: 0 });
-  assert.deepEqual(stored(`tracker-${year}-w${week}`), { bench: '20' });
-  assert.equal($('.trow input').value, '20');
+  assert.equal(stored('workouts-log').length, 1);
 });
