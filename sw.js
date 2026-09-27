@@ -1,4 +1,4 @@
-const CACHE = 'floor-v5';
+const CACHE = 'floor-v6';
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', e => {
@@ -22,8 +22,12 @@ self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
+        // Only a good same-origin page may replace the offline copy — a 404,
+        // a server error or a wifi login page must never become the floor.
+        if(res.ok && res.type === 'basic'){
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+        }
         return res;
       }).catch(() =>
         caches.match(e.request).then(hit => hit || caches.match('index.html'))

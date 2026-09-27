@@ -49,7 +49,7 @@ Claude Code can also drive the SDK install (step U2) via command-line tools if y
 
 ## 5. You do (enabling steps, in order)
 
-**U1 — Confirm hosting.** Verify the page loads at its HTTPS URL in a browser. If not: repo Settings → Pages → deploy from `master`. *Anchor: before the Claude Code session.*
+**U1 — Confirm hosting.** Verify the page loads at its HTTPS URL in a browser. If not: repo Settings → Pages → deploy from `main`. *Anchor: before the Claude Code session.*
 
 **U2 — Android toolchain, once.** JDK 17 + Android SDK command-line tools in the WSL2/Chromebook container (no Android Studio needed for a CLI build). Accept SDK licenses. This is the boring hour of the project; it's one-time.
 
