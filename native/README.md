@@ -25,3 +25,13 @@ the phone (Drive is fine) and tap to install; debug-signed, sideload only.
 
 Note: the WebView's localStorage starts empty and is the single source of
 truth once you switch — deliberately no seed/backfill data lives in this repo.
+
+## Icon
+
+Three SVG masters, one per role (Claude Design exports them as a set per app):
+`../icon.svg` is the full icon (also the web/PWA icon, so bump `sw.js` when it
+changes); `assets/icon-foreground.svg` and `assets/icon-background.svg` are the
+two Android adaptive-icon layers on a 108-unit canvas, glyph inside the central
+66 units. `npm run build:apk` rasterizes them (`make-icons.mjs`) and
+`capacitor-assets` generates every density plus the adaptive XML. The PNGs in
+`assets/` are build output and gitignored; only the SVGs are tracked.
