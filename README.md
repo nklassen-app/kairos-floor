@@ -46,8 +46,11 @@ BACKLOG.md                  closed, history only — open work lives in
 Per week, per mark, an integer count in `localStorage` under `floor-<year>-w<week>`:
 
 ```json
-{ "car": 0-5, "str": 0-2, "yog": 0-2 }
+{ "car": 0-5, "str": 0-3, "yog": 0-3 }
 ```
+
+A week is scored against the targets in force that week (`TARGET_CHANGES` in
+`index.html`), so a change never rewrites past weeks.
 
 Recorded workouts, one array under `workouts-log`, oldest first — only the
 fields typed, values as entered (short strings, `BW` allowed), keyed by the
@@ -70,6 +73,16 @@ in an ISO week library without renumbering stored history.
 
 Per the design doc (§7), the mock's 2026 history seeding was **not** ported —
 the app starts with genuinely empty history.
+
+## Target log
+
+Every target change, the week it takes effect from, and when it was made.
+Weeks before the change keep the old target — in the floor, the strip and the lens.
+
+| From | Change | Decided |
+|------|--------|---------|
+| W1 2026 | Cardio 5 × 30 min · Strength 2 · Yoga 2 | the original floor |
+| W43 2026 (Mon 19 Oct) | Strength 2 → 3 · Yoga 2 → 3 | 2026-10-18 |
 
 ## Interactions
 
