@@ -1,4 +1,4 @@
-const CACHE = 'floor-v8';   // navigations revalidate past the HTTP cache
+const CACHE = 'floor-v9';   // navigations revalidate past the HTTP cache
 const ASSETS = ['.', 'index.html', 'manifest.webmanifest', 'icon.svg'];
 
 self.addEventListener('install', e => {

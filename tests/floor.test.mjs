@@ -103,21 +103,22 @@ test('tapping a row logs a session and persists; a filled pip taps back', () => 
 test('sessions cap at the target and the footer marks a complete floor', () => {
   const { $, $$, stored, year, week, marks } = boot();
   for (const m of marks) for (let i = 0; i < m.target + 2; i++) $(`.row[data-id="${m.id}"]`).click();
-  assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 5, str: 2, yog: 2 });
+  assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 5, str: 3, yog: 3 });
   assert.equal($('#floor-count').textContent, '3 / 3');
   assert.equal($('#floor-footer').classList.contains('done'), true);
-  assert.equal($$('.pip.filled').length, 9);
+  assert.equal($$('.pip.filled').length, 11);
 });
 
 test('rollover: a new week starts empty and the old week colours its strip cell', () => {
   const h = boot();
   const { $, $$, stored, year, week } = h;
   $('.row[data-id="str"]').click();
+  $('.row[data-id="str"]').click();
   $('.row[data-id="str"]').click();                     // one mark complete → "thin"
   h.setClock(new Date(h.w.weekStart(year, week).getTime() + 7 * DAY + DAY / 2));
   assert.equal($('#week-tag').textContent, `W${week + 1}`);
-  assert.equal($('.row[data-id="str"] .row-state').textContent, '0 / 2');
-  assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 2, yog: 0 }, 'the finished week keeps its record');
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '0 / 3');
+  assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 3, yog: 0 }, 'the finished week keeps its record');
   assert.equal(stored(`floor-${year}-w${week + 1}`), null);
   const past = $$('#grid .cell')[week - 1];
   assert.equal(past.tagName, 'BUTTON');
@@ -128,7 +129,7 @@ test('rollover: a new week starts empty and the old week colours its strip cell'
 
 test('week lens: a past cell renders that week read-only; back returns live', () => {
   const { $, $$, stored, year, week } = boot({
-    seed: { [`floor-2026-w${34}`]: { car: 5, str: 2, yog: 1 } },
+    seed: { [`floor-2026-w${34}`]: { car: 5, str: 3, yog: 1 } },
   });
   assert.ok(week > 34, 'the fixed clock sits after week 34');
   $('.row[data-id="str"]').click();                     // live week has one strength session
@@ -146,12 +147,12 @@ test('week lens: a past cell renders that week read-only; back returns live', ()
   assert.equal($$('#grid .cell')[34 - 1].classList.contains('viewing'), true);
   $('.row[data-id="car"]').click();                     // no-op in the lens
   $('.pip[data-id="car"][data-i="0"]').click();
-  assert.deepEqual(stored('floor-2026-w34'), { car: 5, str: 2, yog: 1 });
+  assert.deepEqual(stored('floor-2026-w34'), { car: 5, str: 3, yog: 1 });
   assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 1, yog: 0 }, 'the live week is untouched');
   $('#back-live').click();
   assert.equal($('#viewbar').hidden, true);
   assert.equal($('#week-tag').textContent, `W${week}`);
-  assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 2');
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 3');
 });
 
 test('week lens: a week with no record is the empty floor; the live cell and the workouts tab leave the lens', () => {
@@ -285,7 +286,7 @@ test('old tracker data stays in storage untouched; the Floor tab is unaffected b
   $('#record').click();
   assert.deepEqual(stored('tracker-2026-w36'), { bench: '20' });
   assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 1, yog: 0 }, 'Record never ticks a pip');
-  assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 2');
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '1 / 3');
 });
 
 test('Reset week clears the floor marks only; the workout log survives', () => {
