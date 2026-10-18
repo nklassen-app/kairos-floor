@@ -124,6 +124,33 @@ test('rollover: a new week starts empty and the old week colours its strip cell'
   assert.match(past.getAttribute('aria-label'), /thin/);
 });
 
+test('target change: Strength and Yoga go to 3 from W43 2026; earlier weeks keep 2', () => {
+  const h = boot({
+    now: new Date(2026, 9, 18, 10, 0),                  // Sun 18 Oct = W42, the last week at 2
+    seed: { 'floor-2026-w41': { car: 5, str: 2, yog: 2 } },
+  });
+  const { $, $$, stored, year } = h;
+  assert.equal(h.week, 42);
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '0 / 2');
+  assert.equal($$('#grid .cell')[41 - 1].getAttribute('aria-label'), 'Week 41 — full, view');
+  for (let i = 0; i < 4; i++) $('.row[data-id="str"]').click();
+  assert.equal(stored('floor-2026-w42').str, 2, 'W42 still caps at 2');
+
+  h.setClock(new Date(2026, 9, 19, 8, 0));             // Mon 19 Oct = W43
+  assert.equal($('#week-tag').textContent, 'W43');
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '0 / 3');
+  assert.equal($('.row[data-id="yog"] .row-sub').textContent, '3 sessions');
+  for (let i = 0; i < 4; i++) $('.row[data-id="str"]').click();
+  assert.equal(stored(`floor-${year}-w43`).str, 3);
+  assert.equal($$('.pip[data-id="yog"]').length, 3);
+  assert.equal($$('#grid .cell')[41 - 1].getAttribute('aria-label'), 'Week 41 — full, view',
+    'the old week is still full under its own target');
+
+  $$('#grid .cell')[42 - 1].click();                    // lens on W42: read at 2
+  assert.equal($('.row[data-id="str"] .row-state').textContent, '2 / 2');
+  assert.equal($$('.pip[data-id="str"]').length, 2);
+});
+
 /* ---- F1: the week lens ---- */
 
 test('week lens: a past cell renders that week read-only; back returns live', () => {

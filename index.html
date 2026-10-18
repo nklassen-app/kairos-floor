@@ -265,9 +265,23 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 <script>
 const MARKS = [
   { id:'car', icon:'🏃', name:'Cardio',   sub:'150 min · 5 × 30',         target:5, unit:'min', per:30 },
-  { id:'str', icon:'🏋️', name:'Strength', sub:'2 sessions · 20 min each', target:2, unit:'x' },
-  { id:'yog', icon:'🧘', name:'Yoga',     sub:'2 sessions',               target:2, unit:'x' },
+  { id:'str', icon:'🏋️', name:'Strength', sub:'{n} sessions · 20 min each', target:2, unit:'x' },
+  { id:'yog', icon:'🧘', name:'Yoga',     sub:'{n} sessions',               target:2, unit:'x' },
 ];
+
+// Target changes, oldest first: each applies from its week on, so earlier
+// weeks keep the target they were tracked against. Logged in the README
+// (Target log) — add a line there with every entry here.
+const TARGET_CHANGES = [
+  { from:{ y:2026, w:43 }, str:3, yog:3 },
+];
+function targetFor(m, y, w){
+  let t = m.target;
+  TARGET_CHANGES.forEach(c => {
+    if((y > c.from.y || (y === c.from.y && w >= c.from.w)) && c[m.id] != null) t = c[m.id];
+  });
+  return t;
+}
 
 // Workout routines (kairos-system BACKLOG, Workouts epic): three routines,
 // each in the plan's three parts. Only loadable exercises are tracked;
@@ -392,10 +406,10 @@ function persist(){
   render();
 }
 
-function levelFor(ws){
+function levelFor(ws, y, w){
   if(!ws) return 0;
   let done = 0;
-  MARKS.forEach(m => { if((ws[m.id] || 0) >= m.target) done++; });
+  MARKS.forEach(m => { if((ws[m.id] || 0) >= targetFor(m, y, w)) done++; });
   return done;
 }
 
@@ -404,7 +418,7 @@ let justFilled = null;
 
 function tick(id){
   const m = MARKS.find(x => x.id === id);
-  if(data[id] < m.target){
+  if(data[id] < targetFor(m, year, week)){
     data[id] += 1;
     justFilled = { id, i: data[id] - 1 };
   }
@@ -468,8 +482,9 @@ function render(){
       div.className = 'divider';
       marksEl.appendChild(div);
     }
+    const target = ro ? targetFor(m, view.year, view.week) : targetFor(m, year, week);
     const count = shown[m.id] || 0;
-    const done = count >= m.target;
+    const done = count >= target;
 
     const row = document.createElement('div');
     row.className = 'row' + (ro ? ' ro' : '');
@@ -494,12 +509,12 @@ function render(){
     name.textContent = m.name;
     const sub = document.createElement('span');
     sub.className = 'row-sub';
-    sub.textContent = m.sub;
+    sub.textContent = m.sub.replace('{n}', target);
     text.append(name, sub);
 
     const pips = document.createElement('span');
     pips.className = 'pips';
-    for(let i = 0; i < m.target; i++){
+    for(let i = 0; i < target; i++){
       const pip = document.createElement('button');
       pip.className = 'pip' + (i < count ? ' filled' : '');
       pip.dataset.id = m.id;
@@ -519,7 +534,7 @@ function render(){
 
     const state = document.createElement('span');
     state.className = 'row-state' + (done ? ' done' : '');
-    state.textContent = m.unit === 'min' ? (count * m.per) + ' min' : count + ' / ' + m.target;
+    state.textContent = m.unit === 'min' ? (count * m.per) + ' min' : count + ' / ' + target;
 
     row.append(badge, text, pips, state);
     marksEl.appendChild(row);
@@ -536,7 +551,8 @@ function render(){
     if(el) el.focus();
   }
 
-  const floorDone = MARKS.filter(m => (shown[m.id] || 0) >= m.target).length;
+  const floorDone = MARKS.filter(m => (shown[m.id] || 0) >=
+    (ro ? targetFor(m, view.year, view.week) : targetFor(m, year, week))).length;
   document.getElementById('floor-count').textContent = floorDone + ' / 3';
   document.getElementById('floor-footer').classList.toggle('done', floorDone === 3);
 
@@ -553,7 +569,7 @@ function render(){
     const cell = document.createElement(w <= week ? 'button' : 'span');
     cell.className = 'cell';
     if(w < week){
-      const lvl = levelFor(loadWeek(keyFor(year, w)));
+      const lvl = levelFor(loadWeek(keyFor(year, w)), year, w);
       if(lvl === 3) full++;
       counted++;
       cell.style.background = P[lvl];
@@ -562,7 +578,7 @@ function render(){
       cell.addEventListener('click', () => { viewing = { year, week: w }; render(); });
       if(view && view.year === year && view.week === w) cell.classList.add('viewing');
     } else if(w === week){
-      const lvl = levelFor(data);
+      const lvl = levelFor(data, year, week);
       if(lvl === 3) full++;
       counted++;
       cell.style.background = P[lvl];
