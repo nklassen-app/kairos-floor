@@ -19,9 +19,10 @@ A weight is free text. A value that starts with a number (`22.5`,
 A **Progress** button beside Record, on the Workouts tab, opens one line
 per exercise I have recorded:
 
-- the first weight → the latest, and the change (`16 → 22.5 · +6.5`);
-- when it last went up (`up 12 Oct`), or **stalled** when the last three
-  records are the same or lower, so the ones to push stand out;
+- the first weight ever recorded → the latest, and the change
+  (`16 → 22.5 · +6.5`);
+- when it last went up (`up 12 Oct`). No "stalled" mark: the numbers
+  speak, I judge (N., 2026-10-28);
 - exercises grouped by routine, in the routine's order; an exercise in two
   routines (Hip Airplane) is one line.
 
@@ -50,6 +51,15 @@ storage. The code's routines become the **first seed** only; after that
 the phone's copy is the truth, and a code change to the routines no
 longer reaches the phone. The phone's storage is still the only copy, as
 for the log.
+
+## Reviewed with N. (2026-10-28)
+
+- **No "stalled" mark** (Claude had proposed one after three records
+  without a rise).
+- **The baseline is the first weight ever recorded**, not a recent window.
+- **The phone holds the only copy of the routines** once the editor
+  ships, as it does for the log: no copy-out.
+- **Order:** Workouts 2 (progress) first, then Workouts 4 (the editor).
 
 ## Not built
 
