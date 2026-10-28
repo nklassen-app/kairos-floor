@@ -167,6 +167,40 @@ header{margin-bottom:20px}
 .record:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
 .record-status{font-size:12px;color:var(--muted);line-height:1.4}
 .record-status.ok{color:var(--ena);font-weight:600}
+.progress-btn{
+  font-family:inherit;font-size:12px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;
+  color:var(--ink);background:none;border:1px solid var(--line);border-radius:20px;
+  padding:9px 16px;cursor:pointer;flex:none;
+}
+.progress-btn:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+
+/* progress (Workouts 2) */
+#view-workouts [hidden]{display:none}
+.prog-top{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.prog-back{
+  font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);
+  background:var(--panel);border:1px solid var(--line);border-radius:20px;
+  padding:7px 13px;cursor:pointer;flex:none;
+}
+.prog-back:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+.prog-title{font-size:15px;font-weight:700;min-width:0}
+.prog-empty{padding:18px 24px;color:var(--muted);font-size:13px}
+.prow{
+  display:flex;align-items:baseline;gap:10px;padding:11px 14px;width:100%;
+  font-family:inherit;color:var(--ink);background:none;border:none;text-align:left;cursor:pointer;
+}
+.prow:focus-visible{outline:2px solid var(--ena);outline-offset:-2px}
+.prow-name{flex:1;min-width:0;font-size:14.5px;font-weight:600}
+.prow-val{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.prow-up{display:block;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1px;text-align:right}
+.prow-change.up{color:var(--ena);font-weight:700}
+.prog-chart{display:block;width:100%;height:70px;padding:14px 24px 4px;box-sizing:border-box}
+.prog-chart polyline{fill:none;stroke:var(--ena);stroke-width:2;vector-effect:non-scaling-stroke}
+.prog-chart circle{fill:var(--ena)}
+.hrow-date{flex:1;font-size:13.5px}
+.hrow-open{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.edit-actions{display:flex;gap:10px;align-items:center;padding:4px 24px 18px;flex-wrap:wrap}
+.danger{color:#a23b2c;border-color:#d9b3ab}
 
 /* annual strip */
 .strip{padding:17px 22px 19px}
@@ -249,16 +283,18 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
     <div id="workout-parts"></div>
     <div class="record-row">
       <button class="record" id="record" type="button">Record</button>
+      <button class="progress-btn" id="progress-open" type="button">Progress</button>
       <div class="record-status" id="record-status" role="status" aria-live="polite"></div>
     </div>
-    <div class="actions">
+    <div class="actions" id="workout-hint">
       <div class="hint">Type the weight you used (or BW). Grey = last time.<br>Tap Record at the end of the session.</div>
     </div>
+    <div id="progress" hidden></div>
   </div>
 
   <!-- keep in step with CACHE in sw.js — this is how a phone proves which
        version it renders -->
-  <div class="ver">v10</div>
+  <div class="ver">v11</div>
 
 </div>
 
@@ -754,6 +790,243 @@ function recordWorkout(){
 }
 document.getElementById('record').addEventListener('click', recordWorkout);
 
+/* ---- progress (Workouts 2) ---- */
+
+// What moved: one line per exercise, first weight ever → latest. The design
+// is docs/WORKOUTS_PROGRESS.md. Reads and edits `workouts-log`; no storage of
+// its own. A weight counts by its first number ("24 kg" → 24, "20/22" → 20),
+// except a count of bells, which counts by the weight ("2x16" → 16); "BW"
+// or "band" is shown as written and never counts as up or down.
+function weightNum(v){
+  const t = String(v).trim();
+  const m = t.match(/^\d+\s*[x×]\s*(\d+(?:[.,]\d+)?)/i) || t.match(/^(\d+(?:[.,]\d+)?)/);
+  return m ? parseFloat(m[1].replace(',', '.')) : null;
+}
+function fmtNum(n){ return String(Math.round(n * 100) / 100); }
+function shortDate(iso){
+  return new Date(iso).toLocaleDateString(undefined, { day:'numeric', month:'short' });
+}
+function longDate(iso){
+  return new Date(iso).toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+// Exercise id → name, in the routines' order; an id in two routines once.
+function exerciseIndex(){
+  const out = new Map();
+  ROUTINES.forEach(r => r.parts.forEach(p => p.exercises.forEach(ex => {
+    if(!out.has(ex.id)) out.set(ex.id, { id: ex.id, name: ex.name, routine: r });
+  })));
+  return out;
+}
+// Every record of one exercise, oldest first: { at, value, workout }.
+function historyOf(id, log){
+  return log.filter(w => w.weights && w.weights[id] != null)
+    .slice().sort((a, b) => a.at < b.at ? -1 : 1)
+    .map(w => ({ at: w.at, value: w.weights[id], workout: w }));
+}
+// The last date the weight went up against the previous counted record.
+function lastUp(hist){
+  let prev = null, up = null;
+  hist.forEach(h => {
+    const n = weightNum(h.value);
+    if(n == null) return;
+    if(prev != null && n > prev) up = h.at;
+    prev = n;
+  });
+  return up;
+}
+
+let progress = null;   // null · { view:'list' } · { view:'ex', id } · { view:'workout', id, from }
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(text != null) e.textContent = text;
+  return e;
+}
+function openProgress(state){
+  progress = state;
+  const on = !!progress;
+  ['picker', 'workout-parts', 'workout-hint'].forEach(id => { document.getElementById(id).hidden = on; });
+  document.querySelector('#view-workouts .record-row').hidden = on;
+  document.getElementById('progress').hidden = !on;
+  if(on) renderProgress(); else { renderWorkouts(); }
+}
+function progressTop(title, back){
+  const top = el('div', 'prog-top');
+  const b = el('button', 'prog-back', '← ' + back.label);
+  b.type = 'button';
+  b.dataset.act = 'back';
+  b.addEventListener('click', back.go);
+  top.append(b, el('span', 'prog-title', title));
+  return top;
+}
+
+function renderProgress(){
+  const host = document.getElementById('progress');
+  host.textContent = '';
+  const log = loadLog();
+  if(progress.view === 'ex') return renderExercise(host, log);
+  if(progress.view === 'workout') return renderWorkoutEdit(host, log);
+
+  host.appendChild(progressTop('Progress', { label:'Workout', go: () => openProgress(null) }));
+  const index = exerciseIndex();
+  // ids in the log the routines no longer name still have a history
+  log.forEach(w => Object.keys(w.weights || {}).forEach(id => {
+    if(!index.has(id)) index.set(id, { id, name: id, routine: null });
+  }));
+  const groups = [];
+  ROUTINES.forEach(r => groups.push({ name: r.name, items: [] }));
+  const other = { name: 'Other', items: [] };
+  index.forEach(ex => {
+    const hist = historyOf(ex.id, log);
+    if(!hist.length) return;
+    const g = ex.routine ? groups[ROUTINES.indexOf(ex.routine)] : other;
+    g.items.push({ ex, hist });
+  });
+  groups.push(other);
+  const shown = groups.filter(g => g.items.length);
+  if(!shown.length){
+    const card = el('div', 'card');
+    card.appendChild(el('div', 'prog-empty', 'Nothing recorded yet. Record a workout and its weights show here.'));
+    host.appendChild(card);
+    return;
+  }
+  shown.forEach(g => {
+    const card = el('div', 'card part-card');
+    const head = el('div', 'part-head');
+    head.appendChild(el('span', 'part-name', g.name));
+    card.appendChild(head);
+    const rows = el('div', 'wrows');
+    g.items.forEach(({ ex, hist }, idx) => {
+      if(idx > 0) rows.appendChild(el('div', 'divider'));
+      const first = hist[0].value, latest = hist[hist.length - 1].value;
+      const a = weightNum(first), b = weightNum(latest);
+      const row = el('button', 'prow');
+      row.type = 'button';
+      row.dataset.ex = ex.id;
+      row.appendChild(el('span', 'prow-name', ex.name));
+      const right = el('span');
+      const val = el('span', 'prow-val', hist.length > 1 ? first + ' → ' + latest : String(latest));
+      if(hist.length > 1 && a != null && b != null){
+        const d = b - a;
+        const ch = el('span', 'prow-change' + (d > 0 ? ' up' : ''),
+          ' · ' + (d > 0 ? '+' : d < 0 ? '−' : '±') + fmtNum(Math.abs(d)));
+        val.appendChild(ch);
+      }
+      right.appendChild(val);
+      const up = lastUp(hist);
+      if(up) right.appendChild(el('span', 'prow-up', 'up ' + shortDate(up)));
+      row.appendChild(right);
+      row.addEventListener('click', () => openProgress({ view:'ex', id: ex.id }));
+      rows.appendChild(row);
+    });
+    card.appendChild(rows);
+    host.appendChild(card);
+  });
+}
+
+// A small line through the counted weights, oldest → newest; none when
+// fewer than two count. Inline SVG, no library.
+function chart(hist){
+  const pts = hist.map(h => weightNum(h.value)).filter(n => n != null);
+  if(pts.length < 2) return null;
+  const W = 300, H = 50, lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+  const xy = pts.map((n, i) => [ (i / (pts.length - 1)) * W, H - ((n - lo) / span) * (H - 8) - 4 ]);
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'prog-chart');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Weight from ' + fmtNum(pts[0]) + ' to ' + fmtNum(pts[pts.length - 1]));
+  const line = document.createElementNS(ns, 'polyline');
+  line.setAttribute('points', xy.map(p => p.map(v => v.toFixed(1)).join(',')).join(' '));
+  svg.appendChild(line);
+  return svg;
+}
+
+function renderExercise(host, log){
+  const index = exerciseIndex();
+  const ex = index.get(progress.id) || { id: progress.id, name: progress.id };
+  const hist = historyOf(ex.id, log);
+  if(!hist.length){ progress = { view:'list' }; return renderProgress(); }
+  host.appendChild(progressTop(ex.name, { label:'Progress', go: () => openProgress({ view:'list' }) }));
+  const card = el('div', 'card part-card');
+  const c = chart(hist);
+  if(c) card.appendChild(c);
+  const rows = el('div', 'wrows');
+  hist.forEach((h, idx) => {
+    if(idx > 0) rows.appendChild(el('div', 'divider'));
+    const row = el('button', 'prow hrow');
+    row.type = 'button';
+    row.dataset.workout = h.workout.id;
+    row.append(el('span', 'hrow-date', longDate(h.at)), el('span', 'prow-val', String(h.value)), el('span', 'hrow-open', '›'));
+    row.addEventListener('click', () => openProgress({ view:'workout', id: h.workout.id, from: ex.id }));
+    rows.appendChild(row);
+  });
+  card.appendChild(rows);
+  host.appendChild(card);
+}
+
+// One past workout: fix a mistyped weight, or delete it (confirm). An edit
+// keeps its date; an emptied field drops that weight.
+function renderWorkoutEdit(host, log){
+  const w = log.find(x => x.id === progress.id);
+  const back = () => openProgress(progress.from ? { view:'ex', id: progress.from } : { view:'list' });
+  if(!w){ back(); return; }
+  const routine = ROUTINES.find(r => r.id === w.routine);
+  host.appendChild(progressTop((routine ? routine.name : w.routine) + ' · ' + longDate(w.at),
+    { label:'Back', go: back }));
+  const index = exerciseIndex();
+  const card = el('div', 'card part-card');
+  const rows = el('div', 'wrows');
+  Object.keys(w.weights).forEach((id, idx) => {
+    if(idx > 0) rows.appendChild(el('div', 'divider'));
+    const row = el('div', 'wrow');
+    const text = el('span', 'wrow-text');
+    text.appendChild(el('span', 'wrow-name', (index.get(id) || { name: id }).name));
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 8;
+    input.setAttribute('inputmode', 'decimal');
+    input.dataset.id = id;
+    input.value = w.weights[id];
+    input.setAttribute('aria-label', text.textContent + ' — weight used');
+    row.append(text, input);
+    rows.appendChild(row);
+  });
+  card.appendChild(rows);
+  const actions = el('div', 'edit-actions');
+  const save = el('button', 'record', 'Save');
+  save.type = 'button';
+  save.dataset.act = 'save';
+  const del = el('button', 'progress-btn danger', 'Delete workout');
+  del.type = 'button';
+  del.dataset.act = 'delete';
+  const status = el('div', 'record-status');
+  status.setAttribute('role', 'status');
+  actions.append(save, del, status);
+  card.appendChild(actions);
+  host.appendChild(card);
+
+  const write = next => {
+    try{ localStorage.setItem(LOG_KEY, JSON.stringify(next)); return true; }
+    catch(e){ status.textContent = 'Could not save — storage is full or blocked.'; return false; }
+  };
+  save.addEventListener('click', () => {
+    const weights = {};
+    rows.querySelectorAll('input').forEach(i => { const v = i.value.trim(); if(v) weights[i.dataset.id] = v; });
+    if(!Object.keys(weights).length){ status.textContent = 'All fields are empty — delete the workout instead.'; return; }
+    if(write(loadLog().map(x => x.id === w.id ? Object.assign({}, x, { weights }) : x))) back();
+  });
+  del.addEventListener('click', () => {
+    if(!confirm('Delete the ' + (routine ? routine.name : 'workout') + ' workout of ' + longDate(w.at) + '?')) return;
+    if(write(loadLog().filter(x => x.id !== w.id))) back();
+  });
+}
+
+document.getElementById('progress-open').addEventListener('click', () => openProgress({ view:'list' }));
+
 /* ---- tabs ---- */
 function showTab(which){
   const floor = which === 'floor';
@@ -764,6 +1037,7 @@ function showTab(which){
   // Switching to workouts leaves the week lens — the shared header always
   // shows the live week there.
   if(!floor && viewing){ viewing = null; render(); }
+  if(floor && progress) openProgress(null);
 }
 document.getElementById('tab-floor').addEventListener('click', () => showTab('floor'));
 document.getElementById('tab-workouts').addEventListener('click', () => showTab('workouts'));

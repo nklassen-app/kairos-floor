@@ -325,3 +325,126 @@ test('Reset week clears the floor marks only; the workout log survives', () => {
   assert.deepEqual(stored(`floor-${year}-w${week}`), { car: 0, str: 0, yog: 0 });
   assert.equal(stored('workouts-log').length, 1);
 });
+
+/* ---- progress (Workouts 2) — made-up workouts only ---- */
+
+const LOG = [
+  { id: 'w1', routine: 'upper', at: '2026-09-01T18:00:00.000Z', weights: { bench: '16', csrow: '14', dips: 'BW' } },
+  { id: 'w2', routine: 'lower', at: '2026-09-03T18:00:00.000Z', weights: { deadlift: '40 kg', airplane: 'BW' } },
+  { id: 'w3', routine: 'upper', at: '2026-09-08T18:00:00.000Z', weights: { bench: '18', csrow: '14' } },
+  { id: 'w4', routine: 'upper', at: '2026-09-15T18:00:00.000Z', weights: { bench: '22.5', csrow: '12' } },
+];
+function progressOf(t) {
+  t.$('#tab-workouts').click();
+  t.$('#progress-open').click();
+  return Object.fromEntries(t.$$('#progress .prow').map(r => [r.dataset.ex, r.textContent]));
+}
+
+test('Progress: one line per recorded exercise, first ever → latest with the change', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  const rows = progressOf(t);
+  // what renders, not just the attribute: the Floor's CSS sets these to flex
+  for (const sel of ['#picker', '#workout-parts', '.record-row', '#workout-hint'])
+    assert.equal(t.w.getComputedStyle(t.$(sel)).display, 'none', sel);
+  assert.equal(t.$('#progress').hidden, false);
+  assert.deepEqual(Object.keys(rows), ['bench', 'csrow', 'dips', 'deadlift', 'airplane']);
+  assert.match(rows.bench, /16 → 22\.5 · \+6\.5/);
+  assert.match(rows.bench, /up /);
+  assert.match(rows.csrow, /14 → 12 · −2/);
+  assert.doesNotMatch(rows.csrow, /up /);
+  assert.match(rows.deadlift, /40 kg/);
+  assert.equal(t.$$('#progress .part-name').map(e => e.textContent).join(','), 'Upper Body,Lower Body');
+});
+
+test('Progress: BW is shown as written and never counts as up, down or a change', () => {
+  const t = boot({ seed: { 'workouts-log': [
+    { id: 'a', routine: 'upper', at: '2026-09-01T18:00:00.000Z', weights: { dips: 'BW' } },
+    { id: 'b', routine: 'upper', at: '2026-09-08T18:00:00.000Z', weights: { dips: 'BW+5' } },
+  ] } });
+  const rows = progressOf(t);
+  assert.equal(rows.dips.includes('BW → BW+5'), true);
+  assert.equal(t.$$('#progress .prow[data-ex="dips"] .prow-change').length, 0);
+  assert.equal(t.$$('#progress .prow[data-ex="dips"] .prow-up').length, 0);
+  assert.equal(t.$$('#progress .stalled').length, 0);
+});
+
+test('Progress: nothing recorded says so; Back returns to the workout', () => {
+  const t = boot();
+  progressOf(t);
+  assert.match(t.$('#progress').textContent, /Nothing recorded yet/);
+  t.$('#progress [data-act="back"]').click();
+  assert.equal(t.$('#progress').hidden, true);
+  assert.equal(t.$('#workout-parts').hidden, false);
+});
+
+test("an exercise's history: dates oldest → newest, weights, and a line through the numbers", () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  progressOf(t);
+  t.$('#progress .prow[data-ex="bench"]').click();
+  assert.match(t.$('#progress .prog-title').textContent, /DB Bench Press/);
+  assert.deepEqual(t.$$('#progress .hrow').map(r => r.dataset.workout), ['w1', 'w3', 'w4']);
+  assert.deepEqual(t.$$('#progress .hrow .prow-val').map(e => e.textContent), ['16', '18', '22.5']);
+  assert.equal(t.$$('#progress .prog-chart polyline').length, 1);
+  assert.equal(t.$('#progress polyline').getAttribute('points').split(' ').length, 3);
+  // a single counted value draws no line
+  t.$('#progress [data-act="back"]').click();
+  t.$('#progress .prow[data-ex="deadlift"]').click();
+  assert.equal(t.$$('#progress .prog-chart').length, 0);
+});
+
+test('a past workout: a fixed weight is saved, its date unchanged; an emptied field drops it', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  progressOf(t);
+  t.$('#progress .prow[data-ex="bench"]').click();
+  t.$('#progress .hrow[data-workout="w3"]').click();
+  const inputs = Object.fromEntries(t.$$('#progress input').map(i => [i.dataset.id, i]));
+  inputs.bench.value = '19';
+  inputs.csrow.value = '';
+  t.$('#progress [data-act="save"]').click();
+  const w3 = t.stored('workouts-log').find(w => w.id === 'w3');
+  assert.deepEqual(w3.weights, { bench: '19' });
+  assert.equal(w3.at, '2026-09-08T18:00:00.000Z');
+  assert.equal(t.stored('workouts-log').length, 4);
+  // back on the history, showing the fix
+  assert.deepEqual(t.$$('#progress .hrow .prow-val').map(e => e.textContent), ['16', '19', '22.5']);
+});
+
+test('a past workout: saving with every field empty is refused; delete asks, then removes it', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  progressOf(t);
+  t.$('#progress .prow[data-ex="deadlift"]').click();
+  t.$('#progress .hrow[data-workout="w2"]').click();
+  t.$$('#progress input').forEach(i => { i.value = ''; });
+  t.$('#progress [data-act="save"]').click();
+  assert.match(t.$('#progress .record-status').textContent, /delete the workout instead/);
+  assert.equal(t.stored('workouts-log').length, 4);
+
+  t.w.confirm = () => false;
+  t.$('#progress [data-act="delete"]').click();
+  assert.equal(t.stored('workouts-log').length, 4);
+  t.w.confirm = () => true;
+  t.$('#progress [data-act="delete"]').click();
+  assert.deepEqual(t.stored('workouts-log').map(w => w.id), ['w1', 'w3', 'w4']);
+  // deadlift has no record left: back to the list, without it
+  assert.equal(t.$$('#progress .prow[data-ex="deadlift"]').length, 0);
+  assert.equal(t.$$('#progress .prow[data-ex="bench"]').length, 1);
+});
+
+test('the Floor tab closes Progress; Record and the hints still work after it', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  progressOf(t);
+  t.$('#tab-floor').click();
+  t.$('#tab-workouts').click();
+  assert.equal(t.$('#progress').hidden, true);
+  assert.equal(t.$('#workout-parts').hidden, false);
+  assert.equal(t.$('#workout-parts input[data-id="bench"]').placeholder, '22.5');
+});
+
+test('a count of bells counts by the weight: 2x16 → 2x18 is +2', () => {
+  const t = boot({ seed: { 'workouts-log': [
+    { id: 'a', routine: 'lower', at: '2026-09-03T18:00:00.000Z', weights: { farmer: '2x16' } },
+    { id: 'b', routine: 'lower', at: '2026-09-10T18:00:00.000Z', weights: { farmer: '2 × 18' } },
+  ] } });
+  const rows = progressOf(t);
+  assert.match(rows.farmer, /2x16 → 2 × 18 · \+2/);
+});

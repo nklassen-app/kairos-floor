@@ -98,3 +98,8 @@ Weeks before the change keep the old target — in the floor, the strip and the 
   time's weight as a grey hint. Record saves the workout with today's date and
   clears the fields; an empty Record is refused. Record never ticks a pip.
   Routines change by push (edit `ROUTINES`, bump `sw.js`), not in the app.
+- Workouts tab → Progress: one line per recorded exercise, first weight ever →
+  latest, the change and when it last went up (a value counts by its first
+  number, `2x16` by the 16; `BW` as written). Tap a line for its history and a
+  small line; tap a date to fix that workout's weights or delete it (confirm).
+  Design: `docs/WORKOUTS_PROGRESS.md`.

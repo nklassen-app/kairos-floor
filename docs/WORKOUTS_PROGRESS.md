@@ -11,8 +11,10 @@ already saves, so nothing new is typed at the gym. Sets and reps stay out,
 as the epic's anti-goal says.
 
 A weight is free text. A value that starts with a number (`22.5`,
-`24 kg`, `20/22`) counts by its first number; a value without one (`BW`,
-`band`) is shown as written and never counts as up or down.
+`24 kg`, `20/22`) counts by its first number, except a count of bells,
+which counts by the weight (`2x16` → 16; found building Workouts 2,
+2026-10-28); a value without a number (`BW`, `band`) is shown as written
+and never counts as up or down.
 
 ## What I see first: what moved
 
