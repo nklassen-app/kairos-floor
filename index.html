@@ -201,6 +201,24 @@ header{margin-bottom:20px}
 .hrow-open{font-family:var(--mono);font-size:11px;color:var(--muted)}
 .edit-actions{display:flex;gap:10px;align-items:center;padding:4px 24px 18px;flex-wrap:wrap}
 .danger{color:#a23b2c;border-color:#d9b3ab}
+.prow-removed{font-weight:400;color:var(--muted);font-size:12px}
+
+/* exercise editor (Workouts 4) */
+.erow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 14px}
+.erow input{
+  height:34px;font-family:inherit;font-size:13.5px;padding:0 10px;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);min-width:0;
+}
+.erow input:focus{outline:2px solid var(--ena);background:#fff}
+.erow .e-name{flex:1 1 100%}
+.erow .e-rx{flex:1;font-family:var(--mono);font-size:12px}
+.ebtn{
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;width:34px;height:34px;cursor:pointer;flex:none;
+}
+.ebtn:disabled{opacity:.35;cursor:default}
+.ebtn:focus-visible{outline:2px solid var(--ena);outline-offset:2px}
+.eadd{flex:none;width:auto;padding:0 12px;font-size:12px;letter-spacing:1px;text-transform:uppercase}
 
 /* annual strip */
 .strip{padding:17px 22px 19px}
@@ -284,6 +302,8 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
     <div class="record-row">
       <button class="record" id="record" type="button">Record</button>
       <button class="progress-btn" id="progress-open" type="button">Progress</button>
+      <button class="progress-btn" id="edit-open" type="button">Edit</button>
+      <button class="record" id="edit-done" type="button" hidden>Done</button>
       <div class="record-status" id="record-status" role="status" aria-live="polite"></div>
     </div>
     <div class="actions" id="workout-hint">
@@ -294,7 +314,7 @@ button.cell:focus-visible{outline:2px solid var(--ena);outline-offset:1px}
 
   <!-- keep in step with CACHE in sw.js — this is how a phone proves which
        version it renders -->
-  <div class="ver">v11</div>
+  <div class="ver">v12</div>
 
 </div>
 
@@ -321,10 +341,12 @@ function targetFor(m, y, w){
 
 // Workout routines (kairos-system BACKLOG, Workouts epic): three routines,
 // each in the plan's three parts. Only loadable exercises are tracked;
-// changing a routine is a push, not an in-app edit. Ids are storage keys:
-// stable forever — a rename changes only `name`. `airplane` is one id in
-// Lower and Posture, so its progression is one line.
-const ROUTINES = [
+// since Workouts 4 (2026-10-29) this is only the first seed: the routines
+// live in the phone's storage and change in the app (Edit), so a change
+// here no longer reaches a phone that has opened once. Ids are storage
+// keys: stable forever — a rename changes only `name`. `airplane` is one id
+// in Lower and Posture, so its progression is one line.
+const SEED_ROUTINES = [
   { id:'upper', name:'Upper Body', parts:[
     { name:'Part 1', span:'20′', exercises:[
       { id:'bench',    name:'DB Bench Press (flat/incline)',     rx:'4 × 8–10' },
@@ -376,6 +398,27 @@ const ROUTINES = [
     ]},
   ]},
 ];
+
+// The routines on this phone, under `workouts-routines`:
+// { routines: [...same shape as SEED_ROUTINES], removed: { id: { name, routine } } }.
+// Written once from the seed on first open; the phone's copy is the only one.
+// `removed` keeps a removed exercise's name, so its history still reads.
+const ROUTINES_KEY = 'workouts-routines';
+function loadRoutines(){
+  try{
+    const d = JSON.parse(localStorage.getItem(ROUTINES_KEY));
+    if(d && Array.isArray(d.routines) && d.routines.length) return { routines: d.routines, removed: d.removed || {} };
+  }catch(e){}
+  const fresh = { routines: JSON.parse(JSON.stringify(SEED_ROUTINES)), removed: {} };
+  try{ localStorage.setItem(ROUTINES_KEY, JSON.stringify(fresh)); }catch(e){}
+  return fresh;
+}
+let routineStore = loadRoutines();
+let ROUTINES = routineStore.routines;
+function saveRoutines(){
+  try{ localStorage.setItem(ROUTINES_KEY, JSON.stringify(routineStore)); return true; }
+  catch(e){ return false; }
+}
 
 // Custom week numbering, not true ISO-8601: week 1 starts Jan 1 regardless of
 // weekday, and each new week begins on Monday. Historical storage keys depend
@@ -698,6 +741,7 @@ function renderPicker(){
 // typing keeps its focus.
 function renderWorkouts(){
   renderPicker();
+  if(editing) return renderEditor();
   const r = currentRoutine();
   const fields = draft.fields[r.id] || {};
   const last = lastWeights();
@@ -768,9 +812,10 @@ function renderWorkouts(){
 function recordWorkout(){
   const r = currentRoutine();
   const weights = {};
+  const inRoutine = new Set(r.parts.flatMap(p => p.exercises.map(ex => ex.id)));
   Object.entries(draft.fields[r.id] || {}).forEach(([id, v]) => {
     v = String(v).trim();
-    if(v) weights[id] = v;
+    if(v && inRoutine.has(id)) weights[id] = v;
   });
   if(!Object.keys(weights).length){
     setStatus('Nothing to record — type at least one weight.');
@@ -789,6 +834,142 @@ function recordWorkout(){
     at.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' }) + '.', true);
 }
 document.getElementById('record').addEventListener('click', recordWorkout);
+
+/* ---- exercise editor (Workouts 4) ---- */
+
+// Edit mode on the Workouts tab, per routine and part: add (name and rx),
+// rename, change rx, move up or down, remove. Every change is saved at once
+// into `workouts-routines`. An id is made once and never changes, so a
+// rename keeps its history; a removed exercise keeps its name in `removed`
+// and still shows in Progress. Adding back a removed exercise by the same
+// name brings its id, and its line, back.
+let editing = false;
+
+function setEditing(on){
+  editing = on;
+  document.getElementById('record').hidden = on;
+  document.getElementById('progress-open').hidden = on;
+  document.getElementById('edit-open').hidden = on;
+  document.getElementById('edit-done').hidden = !on;
+  document.getElementById('workout-hint').hidden = on;
+  setStatus(on ? 'Changes save as you make them.' : '');
+  renderWorkouts();
+}
+function allIds(){
+  const ids = new Set(Object.keys(routineStore.removed));
+  ROUTINES.forEach(r => r.parts.forEach(p => p.exercises.forEach(ex => ids.add(ex.id))));
+  loadLog().forEach(w => Object.keys(w.weights || {}).forEach(id => ids.add(id)));
+  return ids;
+}
+function newExerciseId(name){
+  const base = (name.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 10) || 'ex');
+  const used = allIds();
+  let id = base, n = 2;
+  while(used.has(id)) id = base + n++;
+  return id;
+}
+function stillUsed(id){
+  return ROUTINES.some(r => r.parts.some(p => p.exercises.some(ex => ex.id === id)));
+}
+function editAndSave(change){
+  change();
+  if(!saveRoutines()) setStatus('Could not save — storage is full or blocked.');
+  renderWorkouts();
+}
+
+function renderEditor(){
+  const r = currentRoutine();
+  const host = document.getElementById('workout-parts');
+  host.textContent = '';
+  r.parts.forEach(part => {
+    const card = el('div', 'card part-card');
+    const head = el('div', 'part-head');
+    head.append(el('span', 'part-name', part.name), el('span', 'part-span', part.span));
+    card.appendChild(head);
+    const rows = el('div', 'wrows');
+    part.exercises.forEach((ex, idx) => {
+      if(idx > 0) rows.appendChild(el('div', 'divider'));
+      const row = el('div', 'erow');
+      row.dataset.id = ex.id;
+      const name = document.createElement('input');
+      name.className = 'e-name';
+      name.value = ex.name;
+      name.dataset.f = 'name';
+      name.setAttribute('aria-label', 'Name');
+      name.addEventListener('change', () => {
+        const v = name.value.trim();
+        if(!v){ name.value = ex.name; setStatus('A name cannot be empty.'); return; }
+        editAndSave(() => { ex.name = v; });
+      });
+      const rx = document.createElement('input');
+      rx.className = 'e-rx';
+      rx.value = ex.rx || '';
+      rx.dataset.f = 'rx';
+      rx.setAttribute('aria-label', ex.name + ' — sets and reps');
+      rx.addEventListener('change', () => editAndSave(() => { ex.rx = rx.value.trim(); }));
+      const btn = (label, act, aria, disabled, fn) => {
+        const b = el('button', 'ebtn', label);
+        b.type = 'button';
+        b.dataset.act = act;
+        b.setAttribute('aria-label', aria);
+        b.disabled = disabled;
+        b.addEventListener('click', fn);
+        return b;
+      };
+      const list = part.exercises;
+      const up = btn('↑', 'up', 'Move ' + ex.name + ' up', idx === 0,
+        () => editAndSave(() => { list.splice(idx - 1, 0, list.splice(idx, 1)[0]); }));
+      const down = btn('↓', 'down', 'Move ' + ex.name + ' down', idx === list.length - 1,
+        () => editAndSave(() => { list.splice(idx + 1, 0, list.splice(idx, 1)[0]); }));
+      const remove = btn('✕', 'remove', 'Remove ' + ex.name, false, () => {
+        if(!confirm('Remove ' + ex.name + ' from ' + r.name + '? Its history stays.')) return;
+        editAndSave(() => {
+          list.splice(idx, 1);
+          if(!stillUsed(ex.id)) routineStore.removed[ex.id] = { name: ex.name, routine: r.id };
+          if(draft.fields[r.id]){ delete draft.fields[r.id][ex.id]; saveDraft(); }
+        });
+      });
+      row.append(name, rx, up, down, remove);
+      rows.appendChild(row);
+    });
+
+    // add an exercise to this part
+    if(part.exercises.length) rows.appendChild(el('div', 'divider'));
+    const add = el('div', 'erow');
+    add.dataset.add = part.name;
+    const nn = document.createElement('input');
+    nn.className = 'e-name';
+    nn.placeholder = 'Add an exercise';
+    nn.dataset.f = 'new-name';
+    nn.setAttribute('aria-label', 'New exercise in ' + part.name);
+    const nr = document.createElement('input');
+    nr.className = 'e-rx';
+    nr.placeholder = 'Sets × reps';
+    nr.dataset.f = 'new-rx';
+    nr.setAttribute('aria-label', 'Sets and reps of the new exercise');
+    const ab = el('button', 'ebtn eadd', 'Add');
+    ab.type = 'button';
+    ab.dataset.act = 'add';
+    ab.addEventListener('click', () => {
+      const v = nn.value.trim();
+      if(!v){ setStatus('Type a name for the new exercise.'); return; }
+      editAndSave(() => {
+        const back = Object.entries(routineStore.removed).find(([, g]) => g.name.toLowerCase() === v.toLowerCase());
+        const id = back ? back[0] : newExerciseId(v);
+        if(back) delete routineStore.removed[id];
+        part.exercises.push({ id, name: v, rx: nr.value.trim() });
+      });
+      setStatus('Added ' + v + ' to ' + r.name + ', ' + part.name + '.', true);
+    });
+    add.append(nn, nr, ab);
+    rows.appendChild(add);
+    card.appendChild(rows);
+    host.appendChild(card);
+  });
+}
+
+document.getElementById('edit-open').addEventListener('click', () => setEditing(true));
+document.getElementById('edit-done').addEventListener('click', () => setEditing(false));
 
 /* ---- progress (Workouts 2) ---- */
 
@@ -870,9 +1051,14 @@ function renderProgress(){
 
   host.appendChild(progressTop('Progress', { label:'Workout', go: () => openProgress(null) }));
   const index = exerciseIndex();
-  // ids in the log the routines no longer name still have a history
+  // a removed exercise keeps its name and its routine's group, marked;
+  // an id nothing names any more (removed in code before Workouts 4) goes
+  // under Other
   log.forEach(w => Object.keys(w.weights || {}).forEach(id => {
-    if(!index.has(id)) index.set(id, { id, name: id, routine: null });
+    if(index.has(id)) return;
+    const gone = routineStore.removed[id];
+    const r = gone && ROUTINES.find(x => x.id === gone.routine);
+    index.set(id, gone ? { id, name: gone.name, routine: r || null, removed: true } : { id, name: id, routine: null });
   }));
   const groups = [];
   ROUTINES.forEach(r => groups.push({ name: r.name, items: [] }));
@@ -904,7 +1090,9 @@ function renderProgress(){
       const row = el('button', 'prow');
       row.type = 'button';
       row.dataset.ex = ex.id;
-      row.appendChild(el('span', 'prow-name', ex.name));
+      const nameEl = el('span', 'prow-name', ex.name);
+      if(ex.removed) nameEl.appendChild(el('span', 'prow-removed', ' · removed'));
+      row.appendChild(nameEl);
       const right = el('span');
       const val = el('span', 'prow-val', hist.length > 1 ? first + ' → ' + latest : String(latest));
       if(hist.length > 1 && a != null && b != null){
@@ -947,7 +1135,8 @@ function chart(hist){
 
 function renderExercise(host, log){
   const index = exerciseIndex();
-  const ex = index.get(progress.id) || { id: progress.id, name: progress.id };
+  const gone = routineStore.removed[progress.id];
+  const ex = index.get(progress.id) || { id: progress.id, name: gone ? gone.name : progress.id };
   const hist = historyOf(ex.id, log);
   if(!hist.length){ progress = { view:'list' }; return renderProgress(); }
   host.appendChild(progressTop(ex.name, { label:'Progress', go: () => openProgress({ view:'list' }) }));
@@ -984,7 +1173,8 @@ function renderWorkoutEdit(host, log){
     if(idx > 0) rows.appendChild(el('div', 'divider'));
     const row = el('div', 'wrow');
     const text = el('span', 'wrow-text');
-    text.appendChild(el('span', 'wrow-name', (index.get(id) || { name: id }).name));
+    const gone = routineStore.removed[id];
+    text.appendChild(el('span', 'wrow-name', (index.get(id) || { name: gone ? gone.name : id }).name));
     const input = document.createElement('input');
     input.type = 'text';
     input.maxLength = 8;
@@ -1038,6 +1228,7 @@ function showTab(which){
   // shows the live week there.
   if(!floor && viewing){ viewing = null; render(); }
   if(floor && progress) openProgress(null);
+  if(floor && editing) setEditing(false);
 }
 document.getElementById('tab-floor').addEventListener('click', () => showTab('floor'));
 document.getElementById('tab-workouts').addEventListener('click', () => showTab('workouts'));

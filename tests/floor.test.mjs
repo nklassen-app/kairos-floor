@@ -448,3 +448,142 @@ test('a count of bells counts by the weight: 2x16 → 2x18 is +2', () => {
   const rows = progressOf(t);
   assert.match(rows.farmer, /2x16 → 2 × 18 · \+2/);
 });
+
+/* ---- the exercise editor (Workouts 4) — made-up workouts only ---- */
+
+function editRoutine(t, routine = 'upper') {
+  t.$('#tab-workouts').click();
+  t.$(`#picker .pick[data-id="${routine}"]`).click();
+  t.$('#edit-open').click();
+}
+const rowOf = (t, id) => t.$(`#workout-parts .erow[data-id="${id}"]`);
+const change = (t, input, v) => { input.value = v; input.dispatchEvent(new t.w.Event('change')); };
+const storedRoutine = (t, id) => t.stored('workouts-routines').routines.find(r => r.id === id);
+const ids = (t, routine, part) => storedRoutine(t, routine).parts[part].exercises.map(e => e.id);
+
+test('first open writes the seed to storage once; later the phone copy is read, not the code', () => {
+  const t = boot();
+  const st = t.stored('workouts-routines');
+  assert.equal(st.routines.length, 3);
+  assert.deepEqual(st.removed, {});
+  const changed = JSON.parse(JSON.stringify(st));
+  changed.routines[0].parts[0].exercises[0].name = 'Floor Press';
+  const t2 = boot({ seed: { 'workouts-routines': changed } });
+  t2.$('#tab-workouts').click();
+  assert.equal(t2.$('#workout-parts .wrow-name').textContent, 'Floor Press');
+});
+
+test('Edit swaps the Record row for Done; Done returns to the workout', () => {
+  const t = boot();
+  editRoutine(t);
+  assert.equal(t.$('#record').hidden, true);
+  assert.equal(t.$('#edit-done').hidden, false);
+  assert.equal(t.$$('#workout-parts .erow[data-id]').length, 10);
+  t.$('#edit-done').click();
+  assert.equal(t.$('#record').hidden, false);
+  assert.equal(t.$$('#workout-parts .wrow').length, 10);
+});
+
+test('rename and rx: saved at once; the id stays, so the history follows the new name', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  editRoutine(t);
+  change(t, rowOf(t, 'bench').querySelector('[data-f="name"]'), 'Incline DB Press');
+  change(t, rowOf(t, 'bench').querySelector('[data-f="rx"]'), '3 × 6–8');
+  const ex = storedRoutine(t, 'upper').parts[0].exercises[0];
+  assert.deepEqual(ex, { id: 'bench', name: 'Incline DB Press', rx: '3 × 6–8' });
+  t.$('#edit-done').click();
+  const rows = progressOf(t);
+  assert.match(rows.bench, /Incline DB Press.*16 → 22\.5/);
+});
+
+test('an empty name is refused', () => {
+  const t = boot();
+  editRoutine(t);
+  change(t, rowOf(t, 'bench').querySelector('[data-f="name"]'), '  ');
+  assert.equal(storedRoutine(t, 'upper').parts[0].exercises[0].name, 'DB Bench Press (flat/incline)');
+});
+
+test('move up and down within a part; the ends cannot move further', () => {
+  const t = boot();
+  editRoutine(t);
+  assert.equal(rowOf(t, 'bench').querySelector('[data-act="up"]').disabled, true);
+  rowOf(t, 'bench').querySelector('[data-act="down"]').click();
+  assert.deepEqual(ids(t, 'upper', 0), ['csrow', 'bench']);
+  assert.equal(rowOf(t, 'bench').querySelector('[data-act="down"]').disabled, true);
+  rowOf(t, 'bench').querySelector('[data-act="up"]').click();
+  assert.deepEqual(ids(t, 'upper', 0), ['bench', 'csrow']);
+});
+
+test('remove asks first; a removed exercise keeps its history and shows in Progress, marked removed', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  editRoutine(t);
+  t.w.confirm = () => false;
+  rowOf(t, 'csrow').querySelector('[data-act="remove"]').click();
+  assert.deepEqual(ids(t, 'upper', 0), ['bench', 'csrow']);
+  t.w.confirm = () => true;
+  rowOf(t, 'csrow').querySelector('[data-act="remove"]').click();
+  assert.deepEqual(ids(t, 'upper', 0), ['bench']);
+  assert.deepEqual(t.stored('workouts-routines').removed.csrow, { name: 'Chest-Supported DB Row', routine: 'upper' });
+  assert.equal(t.stored('workouts-log').length, 4);
+  t.$('#edit-done').click();
+  assert.equal(t.$$('#workout-parts input[data-id="csrow"]').length, 0);
+  const rows = progressOf(t);
+  assert.match(rows.csrow, /Chest-Supported DB Row · removed.*14 → 12/);
+});
+
+test('add: a new exercise gets a new id, records like any other, and starts its own line', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  editRoutine(t);
+  const add = t.$$('#workout-parts .erow[data-add]')[2];
+  add.querySelector('[data-f="new-name"]').value = 'Cable Curl';
+  add.querySelector('[data-f="new-rx"]').value = '3 × 12';
+  add.querySelector('[data-act="add"]').click();
+  const part3 = storedRoutine(t, 'upper').parts[2].exercises;
+  const added = part3[part3.length - 1];
+  assert.equal(added.name, 'Cable Curl');
+  assert.equal(added.rx, '3 × 12');
+  assert.ok(!['bench', 'csrow', 'hammer'].includes(added.id));
+  t.$('#edit-done').click();
+  const input = t.$(`#workout-parts input[data-id="${added.id}"]`);
+  input.value = '12'; input.dispatchEvent(new t.w.Event('input'));
+  t.$('#record').click();
+  assert.equal(t.stored('workouts-log').at(-1).weights[added.id], '12');
+  assert.match(progressOf(t)[added.id], /Cable Curl/);
+});
+
+test('an empty add is refused; adding back a removed name brings its id and history back', () => {
+  const t = boot({ seed: { 'workouts-log': LOG } });
+  editRoutine(t);
+  t.$$('#workout-parts .erow[data-add]')[0].querySelector('[data-act="add"]').click();
+  assert.equal(ids(t, 'upper', 0).length, 2);
+  rowOf(t, 'csrow').querySelector('[data-act="remove"]').click();
+  const add = t.$$('#workout-parts .erow[data-add]')[1];
+  add.querySelector('[data-f="new-name"]').value = 'chest-supported db row';
+  add.querySelector('[data-act="add"]').click();
+  assert.ok(ids(t, 'upper', 1).includes('csrow'));
+  assert.deepEqual(t.stored('workouts-routines').removed, {});
+});
+
+test('Hip Airplane removed from one routine stays in the other, and is not marked removed', () => {
+  const t = boot();
+  editRoutine(t, 'lower');
+  rowOf(t, 'airplane').querySelector('[data-act="remove"]').click();
+  assert.equal(t.stored('workouts-routines').removed.airplane, undefined);
+  assert.ok(storedRoutine(t, 'posture').parts[1].exercises.some(e => e.id === 'airplane'));
+});
+
+test('a removed exercise typed before removal is not recorded; the Floor tab ends Edit', () => {
+  const t = boot();
+  t.$('#tab-workouts').click();
+  const f = t.$('#workout-parts input[data-id="csrow"]');
+  f.value = '14'; f.dispatchEvent(new t.w.Event('input'));
+  const b = t.$('#workout-parts input[data-id="bench"]');
+  b.value = '20'; b.dispatchEvent(new t.w.Event('input'));
+  t.$('#edit-open').click();
+  rowOf(t, 'csrow').querySelector('[data-act="remove"]').click();
+  t.$('#tab-floor').click();
+  t.$('#tab-workouts').click();
+  assert.equal(t.$('#record').hidden, false);
+  t.$('#record').click();
+  assert.deepEqual(t.stored('workouts-log').at(-1).weights, { bench: '20' });
+});

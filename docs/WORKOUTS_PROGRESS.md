@@ -63,6 +63,15 @@ for the log.
   ships, as it does for the log: no copy-out.
 - **Order:** Workouts 2 (progress) first, then Workouts 4 (the editor).
 
+## Built
+
+- Workouts 2, what moved: 2026-10-28, `floor-v11`; tried and kept by N.
+  2026-10-29.
+- Workouts 4, the editor: 2026-10-29, `floor-v12`. Changes save as they
+  are made; removing asks first. A new exercise's id is made from its name
+  once (`cablecurl`) and never changes. An exercise in two routines (Hip
+  Airplane) removed from one is not marked removed while the other has it.
+
 ## Not built
 
 Charts beyond the one small line, sets and reps, timers, suggestions,
