@@ -20,7 +20,8 @@ npx cap sync android   # only needed after changing capacitor.config.json
 npm run build:apk
 ```
 
-APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`. Transfer to
+APK lands at the repo root as `floor-app-debug.apk` (copied from
+`android/app/build/outputs/apk/debug/`, ignored by git). Transfer to
 the phone (Drive is fine) and tap to install; debug-signed, sideload only.
 
 Note: the WebView's localStorage starts empty and is the single source of

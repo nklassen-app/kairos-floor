@@ -4,7 +4,7 @@
   "description": "Capacitor Android shell for The Floor — loads the GitHub Pages site in a WebView so the app works while Chrome is blocked",
   "private": true,
   "scripts": {
-    "build:apk": "node make-icons.mjs && capacitor-assets generate --android && cd android && ./gradlew assembleDebug"
+    "build:apk": "node make-icons.mjs && capacitor-assets generate --android && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../../floor-app-debug.apk"
   },
   "dependencies": {
     "@capacitor/android": "6.2.1",
