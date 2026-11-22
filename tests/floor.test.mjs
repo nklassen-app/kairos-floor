@@ -587,3 +587,18 @@ test('a removed exercise typed before removal is not recorded; the Floor tab end
   t.$('#record').click();
   assert.deepEqual(t.stored('workouts-log').at(-1).weights, { bench: '20' });
 });
+
+// Egress 1 (Foundation review, 2026-11-22): the page may reach its own
+// address only, as the Whiteboard's does. A Content-Security-Policy says so,
+// and nothing in the page asks for anything else.
+test('the page may reach its own address only: a CSP, and no outside address or fetch in the page', () => {
+  const m = HTML.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/);
+  assert.ok(m, 'the page carries a Content-Security-Policy');
+  const csp = m[1];
+  for (const rule of ["default-src 'self'", "connect-src 'self'", "img-src 'self'",
+                      "object-src 'none'", "base-uri 'none'", "form-action 'none'"]) {
+    assert.ok(csp.includes(rule), `the CSP says ${rule}`);
+  }
+  assert.doesNotMatch(csp, /https?:|\*/);
+  assert.doesNotMatch(HTML.replace('http://www.w3.org/2000/svg', ''), /(src|href)="https?:|fetch\(/);
+});
